@@ -4,7 +4,7 @@ from .distiller_basic import BasicDistiller
 
 class GeneralDistiller(BasicDistiller):
     """
-    Supports intermediate features matching. **Recommended for single-teacher single-task distillation**.
+    支持中间特征匹配。 **推荐用于单teacher单任务蒸馏**。
 
     Args:
         train_config (:class:`TrainingConfig`): training configuration.
@@ -28,10 +28,11 @@ class GeneralDistiller(BasicDistiller):
         # custom_matches=[{'module_T': module_T, 'module_S':module_S,
         #                 'loss': loss, 'weight': weight},...]
         super(GeneralDistiller, self).__init__(train_config, distill_config, model_T, model_S, adaptor_T, adaptor_S)
-
+        # 初始化投影设置
         self.projs = []
         self.projs_group = []
         for im in self.d_config.intermediate_matches:
+            # 如果proj参数设置了，就加上, 就是我们match中提供的这个proj_func
             if im.proj is not None:
                 projection = im.proj[0]
                 dim_in = im.proj[1]

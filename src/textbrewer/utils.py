@@ -77,24 +77,30 @@ class LayerNode:
 
 def display_parameters(model,max_level=None):
     """
-    Display the numbers and memory usage of module parameters.
+    显示模型参数的数量和内存使用情况。
 
     Args:
-        model (torch.nn.Module or dict): the model to be inspected.
-        max_level (int or None): The max level to display. If ``max_level==None``, show all the levels.
+        model (torch.nn.Module or dict): 加载好的模型
+        max_level (int or None): 显示的 max level. If ``max_level==None``, 显示所有层
     Returns:
         A formatted string and a :class:`~textbrewer.utils.LayerNode` object representing the model.
+        # 返回格式化后的模型的参数量和内存使用率， 返回模型的所有层组成的一个树结构信息
     """
     if isinstance(model,torch.nn.Module):
         state_dict = model.state_dict()
     elif isinstance(model,dict):
         state_dict = model
     else:
-        raise TypeError("model should be either torch.nn.Module or a dict")
+        raise TypeError("模型应该是torch.nn.Module或dict")
+    #用于存储tensor元素的地址
     hash_set = set()
+    # 初始化一个名字, 用于创建一个树结构，存储参数相关名字
     model_node = LayerNode('model',fullname='model')
+    # 第一个node
     current = model_node
-    for key,value  in state_dict.items():
+    for key,value in state_dict.items():
+        # name是'bert.embeddings.word_embeddings.weight'
+        # value是shape 是torch.Size([30522, 768])
         names = key.split('.')
         for i,name in enumerate(names):
             if name not in current:
@@ -108,11 +114,12 @@ def display_parameters(model,max_level=None):
             current.update(current.value)
         else:
             hash_set.add(value.data_ptr())
+            # current.value 存储参数和参数占用的内存
             current.value = [value.numel(),value.numel() * value.element_size() / 1024/1024]
             current.update(current.value)
             
         current = model_node
-
+    #递归计算所有节点的参数量和内存使用率，并格式化
     result = model_node.format(max_level=max_level)
     #print (result)
     return result, model_node

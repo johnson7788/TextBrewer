@@ -2,7 +2,7 @@ from .distiller_utils import *
 
 class BasicDistiller(AbstractDistiller):
     """
-    Performs **single-teacher single-task** distillation, provides basic distillation strategies.
+    执行“单teacher单任务”蒸馏，提供基本的蒸馏策略。
 
     Args:
         train_config (:class:`TrainingConfig`): training configuration.

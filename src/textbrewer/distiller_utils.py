@@ -99,13 +99,14 @@ class AbstractDistiller(DistillationContext):
         self.model_S = model_S
         self.adaptor_S = adaptor_S
         self.adaptor_T = adaptor_T
-
+        # 支持2种损失   * '**mse**' : mean squared error  * '**ce**': cross-entropy loss
         self.kd_loss = KD_LOSS_MAP[self.d_config.kd_loss_type]
 
         self.local_rank = self.t_config.local_rank
         self.rank = 0
         if self.local_rank != -1:
             self.rank = torch.distributed.get_rank()
+        # tb_writer的设置
         if self.t_config.log_dir is not None and self.rank == 0:
             self.tb_writer = SummaryWriter(log_dir = self.t_config.log_dir)
         else:

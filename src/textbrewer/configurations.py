@@ -4,7 +4,7 @@ from typing import Union, List, Optional, Dict
 from .presets import *
 
 class Config:
-    """Base class for TrainingConfig and DistillationConfig."""
+    """TrainingConfig和DistillationConfig的基类。"""
     def __init__(self,**kwargs):
         pass
 
@@ -34,36 +34,36 @@ class Config:
 
 class TrainingConfig(Config):
     """
-    Configurations related to general model training.
+    生成训练配置文件
 
     Args:
-        gradient_accumulation_steps (int): accumulates gradients before optimization to reduce GPU memory usage. It calls ``optimizer.step()`` every `gradient_accumulation_steps` backward steps.
-        ckpt_frequency (int): stores model weights `ckpt_frequency` times every epoch.
-        ckpt_epoch_frequency (int): stores model weights every `ckpt_epoch_frequency` epochs.
-        ckpt_steps (int):  if *num_steps* is passes to ``distiller.train()``, saves the model every **ckpt_steps**, meanwhile ignore `ckpt_frequency` and `ckpt_epoch_frequency` .
-        log_dir (str): directory to save the tensorboard log file. Set it to ``None`` to disable tensorboard.
-        output_dir (str): directory to save model weights.
-        device (str or torch.device): training on CPU or GPU.
-        fp16 (bool): if ``True``, enables mixed precision training using Apex.
-        fp16_opt_level(str): Pure or mixed precision optimization level. Accepted values are "O0", "O1", "O2", and "O3". See Apex documenation for details.
-        data_parallel (bool): If ``True``, wraps the models with ``torch.nn.DataParallel``.
-        local_rank (int): the local rank of the current processes. A non-nagative value means that we are in the distributed training mode with ``DistributedDataParallel``.  
+        gradient_accumulation_steps (int): 优化之前会累积梯度以减少GPU内存使用量. It calls ``optimizer.step()`` every `gradient_accumulation_steps` backward steps.
+        ckpt_frequency (int): 每个epoch存储几个模型权重
+        ckpt_epoch_frequency (int): 每个几个epoch存储一个模型权重
+        ckpt_steps (int):  if *num_steps* is passes to ``distiller.train()``, 每 **ckpt_steps**保存模型, 同时忽略 `ckpt_frequency` and `ckpt_epoch_frequency` .
+        log_dir (str): 保存tensorboard日志文件的目录. Set it to ``None`` to disable tensorboard.
+        output_dir (str): 保存模型权重的目录.
+        device (str or torch.device): 在CPU或GPU上训练.
+        fp16 (bool): if ``True``, 使用Apex实现混合精度训练.
+        fp16_opt_level(str): 纯或混合精度优化级别。可接受的值为“ O0”，“ O1”，“ O2”和“ O3”。有关详细信息，请参见Apex文档。.
+        data_parallel (bool): If ``True``, 将模型包装 ``torch.nn.DataParallel``.
+        local_rank (int): 当前进程的本地rank. 非负值表示我们处于分布式训练模式 ``DistributedDataParallel``.
     Note:
-        * To perform data parallel (DP) training, you could either wrap the models with ``torch.nn.DataParallel`` outside TextBrewer by yourself, or leave the work for TextBrewer by setting **data_parallel** to ``True``.
-        * To enable both data parallel training and mixed precision training, you should set **data_parallel** to ``True``, and DO NOT wrap the models by yourself.
-        * In some experiments, we have observed slowing down in the speed with ``torch.nn.DataParallel``.
-        * To perform distributed data parallel (DDP) training, you should call ``torch.distributed.init_process_group`` before intializing a TrainingConfig; and pass the **raw** (unwrapped) model when initializing the distiller.
-        * DP and DDP are mutual exclusive.
+        * 为了进行数据并行(DP)训练，您可以自己在TextBrewer外部使用``torch.nn.DataParallel''包装模型，或者通过将** data_parallel **设置为``True''将工作留给TextBrewer。
+        * 要同时启用数据并行训练和混合精度训练，应将** data_parallel **设置为``True``，并且不要自己包装模型。
+        * 在一些实验中，我们观察到``torch.nn.DataParallel``的速度降低了。
+        * 要执行分布式数据并行(DDP)训练，应在初始化TrainingConfig之前调用torch.distributed.init_process_group。并在初始化蒸馏器时传递“原始”(未包装)模型。
+        * DP和DDP是互斥的。
     Example::
 
-        # Usually just need to set log_dir and output_dir and leave others default
+        # 通常只需要设置log_dir和output_dir并保留其他默认值即可
         train_config = TrainingConfig(log_dir=my_log_dir, output_dir=my_output_dir)
         
-        # Stores the model at the end of each epoch
+        # 在每个epoch结束时存储模型
         train_config = TrainingConfig(ckpt_frequency=1, ckpt_epoch_frequency=1)
-        # Stores the model twice (at the middle and at the end) in each epoch
+        # 在每个epoch中两次存储模型(在中间和末尾)
         train_config = TrainingConfig(ckpt_frequency=2, ckpt_epoch_frequency=1)
-        # Stores the model once every two epochs
+        # 每两个epoch存储一次模型
         train_config = TrainingConfig(ckpt_frequency=1, ckpt_epoch_frequency=2)
 
     """
@@ -81,7 +81,7 @@ class TrainingConfig(Config):
                  ):
         super(TrainingConfig, self).__init__()
 
-        self.gradient_accumulation_steps =gradient_accumulation_steps
+        self.gradient_accumulation_steps = gradient_accumulation_steps
         self.ckpt_frequency = ckpt_frequency
         self.ckpt_epoch_frequency = ckpt_epoch_frequency
         self.ckpt_steps = ckpt_steps
@@ -91,8 +91,9 @@ class TrainingConfig(Config):
         self.fp16 = fp16
         self.fp16_opt_level = fp16_opt_level
         self.data_parallel = data_parallel
-
+        # 分布式训练设置
         self.local_rank = local_rank
+        # 本地设置，创建输出文件夹
         if self.local_rank == -1 or torch.distributed.get_rank() == 0:
             if not os.path.exists(self.output_dir):
                 os.makedirs(self.output_dir)
@@ -136,7 +137,7 @@ class IntermediateMatch:
 
 class DistillationConfig(Config):
     """
-    Configurations related to distillation methods. It defines the total loss to be optimized:
+    与蒸馏方法有关的配置。它定义了要优化的总损失
     
     .. math::
 
@@ -144,62 +145,61 @@ class DistillationConfig(Config):
     
     where
 
-        * :math:`\mathcal{L}_{KD}` is the KD loss on logits, :math:`w_{KD}` is its weight;
-        * :math:`\mathcal{L}_{hl}` is the sum of ``losses`` returned by the adaptor and :math:`w_{hl}` is its weight;
+        * :math:`\mathcal{L}_{KD}` 是logit的KD损失, :math:`w_{KD}` 是其权重;
+        * :math:`\mathcal{L}_{hl}` 是adaptor返回的``损失''之和， :math:`w_{hl}` 是其权重;
         * intermediate_losses is defined via `intermediate_matches`.
     
     Args:
-        temperature (float) :temperature for the distillation. The teacher and student models' logits will be divided by the temperature in computing the KD loss. The temperature typicially ranges from 1 to 10. We found that temperature higher than 1 usually leads to better performance.
-        temperature_scheduler: dynamically adjusts temperature. See :data:`~textbrewer.presets.TEMPERATURE_SCHEDULER` for all available options.
-        kd_loss_type (str): KD loss function for the ``logits`` term returned by the adaptor, can be ``'ce'`` or ``'mse'``. See :data:`~textbrewer.presets.KD_LOSS_MAP`.
-        kd_loss_weight (float): the weight for the KD loss.
-        hard_label_weight (float): the weight for the sum of ``losses`` term returned by the adaptor. ``losses`` may include the losses on the ground-truth labels and other user-defined losses. 
-        kd_loss_weight_scheduler: Dynamically adjusts KD loss weight. See :data:`~textbrewer.presets.WEIGHT_SCHEDULER` for all available options.
-        hard_label_weight_scheduler: Dynamically adjusts the weight of the sum of ``losses``. See :data:`~textbrewer.presets.WEIGHT_SCHEDULER` for all available options.
-        probability_shift (bool): if ``True``, switch the ground-truth label's logit and the largest logit predicted by the teacher, to make the ground-truth label's logit largest. Requires ``labels`` term returned by the adaptor.
-        is_caching_logits (bool): if ``True``, caches the batches and the output logits of the teacher model in memory, so that those logits will only be calcuated once. It will speed up the distillation process. This feature is **only available** for :class:`~textbrewer.BasicDistiller` and :class:`~textbrewer.MultiTeacherDistiller`, and only when distillers' ``train()`` method is called with ``num_steps=None``. It is suitable for small and medium datasets.
-        intermediate_matches (`List[Dict]`) : Configuration for intermediate feature matching. Each element in the list is a dict, representing a pair of matching config. 
-    
-    The dict in `intermediate_matches` contains the following keys:
+        temperature (float) : 蒸馏温度。在计算KD损失时，teacher-student模型的logits将除以温度。温度通常在1到10的范围内。我们发现高于1的温度通常会带来更好的性能。
+        temperature_scheduler: 动态调节温度。有关所有可用选项，请参见：data：`〜textbrewer.presets.TEMPERATURE_SCHEDULER`。
+        kd_loss_type (str): KD loss 函数对于adaptor返回的logits, 可以是``'ce'`` 或 ``'mse'``. See :data:`~textbrewer.presets.KD_LOSS_MAP`.
+        kd_loss_weight (float): KD损失的权重.
+        hard_label_weight (float): adaptor返回的``losses''项目和的权重。`losses``可能包括真实标签上的损失和其他用户定义的损失。
+        kd_loss_weight_scheduler: 动态调整KD损失权重。有关所有可用选项，请参见：data：`〜textbrewer.presets.WEIGHT_SCHEDULER`。
+        hard_label_weight_scheduler: 动态调整``losses``总和的权重。有关所有可用选项，请参见：data：`〜textbrewer.presets.WEIGHT_SCHEDULER`。
+        probability_shift (bool): 如果为``True''，则将ground-truth标签的logit和teacher预测的最大logit进行切换，以使ground-truth标签的logit最大。需要adaptor返回的``labels`''项。
+        is_caching_logits (bool): 如果为``True''，则将teacher模型的批次和输出logit缓存在内存中，以便这些logit仅计算一次。它将加快蒸馏过程。 **仅适用于：class：`〜textbrewer.BasicDistiller`和：class：`〜textbrewer.MultiTeacherDistiller`，并且仅当使用dinumers的``train()''方法以num_steps=None`。它适用于中小型数据集。
+        intermediate_matches (`List[Dict]`) : 中间特征匹配的配置。列表中的每个元素都是字典，代表一对匹配的配置。
 
-        * '**layer_T**': `layer_T` (*int*): selects the layer_T-th layer of teacher model.
-        * '**layer_S**': `layer_S` (*int*): selects the layer_S-th layer of student model.
+    “intermediate_matches”中的字典包含以下键:
+
+        * '**layer_T**': `layer_T` (*int*): 选择teacher模型的第layer_T层。
+        * '**layer_S**': `layer_S` (*int*): 选择Student模型的第layer_S层。
 
         .. Note::
         
-            1. `layer_T` and `layer_S` indicate layers in ``attention`` or ``hidden`` list in the returned dict of the adaptor, rather than the actual layers in the model. 
-            2. If the loss is :func:`fst <textbrewer.losses.fsp_loss>` or :func:`nst <textbrewer.losses.mmd_loss>`, two layers have to be chosen from the teacher and the student respectively. In this case, `layer_T` and `layer_S` are lists of two ints. See the example below.
+            1. “ layer_T”和“ layer_S”指示adaptor返回的字典中“attention”或“hidden”列表中的层，而不是模型中的实际层。
+            2. 如果损失是fst <textbrewer.losses.fsp_loss>或nst <textbrewer.losses.mmd_loss>，则必须分别从teacher和student中选择两层。在这种情况下，“ layer_T”和“ layer_S”是两个整数的列表。请参见下面的示例。
 
-        * '**feature**': `feature` (*str*): features of intermediate layers. It can be:
+        * '**feature**': `feature` (*str*): 中间层的特征。可以是:
 
-            * '**attention**' : attention matrix, of the shape (*batch_size*, *num_heads*, *length*, *length*) or (*batch_size*, *length*, *length*)
-            * '**hidden**'：hidden states, of the shape (*batch_size*, *length*, *hidden_dim*).
+            * '**attention**' : attention matrix, 形状是 (*batch_size*, *num_heads*, *length*, *length*) or (*batch_size*, *length*, *length*)
+            * '**hidden**'：hidden states, 形状是 (*batch_size*, *length*, *hidden_dim*).
 
-        * '**loss**' : `loss` (*str*) : loss function. See :data:`~textbrewer.presets.MATCH_LOSS_MAP` for available losses. Currently includes: ``'attention_mse'``, ``'attention_ce'``, ``'hidden_mse'``, ``'nst'``, etc.
-        * '**weight**': `weight` (float) : weight for the loss.
-        * '**proj**' : `proj` (*List*, optional) : if the teacher and the student have the same feature dimension, it is optional; otherwise it is required. It is the mapping function to match teacher and student intermediate feature dimension. It is a list, with these elements:
-
-            * **proj[0]** (*str*): mapping function, can be ``'linear'``, ``'relu'``, ``'tanh'``. See :data:`~textbrewer.presets.PROJ_MAP`.
-            * **proj[1]** (*int*): feature dimension of student model.
-            * **proj[2]** (*int*): feature dimension of teacher model.
-            * **proj[3]** (*dict*): optional, provides configurations such as learning rate. If not provided, the learning rate and optimizer configurations will follow the default config of the optimizer, otherwise it will use the ones specified here.
+        * '**loss**' : `loss` (*str*) : loss function. See :data:`~textbrewer.presets.MATCH_LOSS_MAP` for available losses. 当前有: ``'attention_mse'``, ``'attention_ce'``, ``'hidden_mse'``, ``'nst'``, etc.
+        * '**weight**': `weight` (float) : 损失的权重.
+        * '**proj**' : `proj` (*List*, optional) : 如果teacher和student的特征尺寸相同，则为可选；否则是必需的。它是匹配teacher和student中间特征尺寸的映射特征。它是一个包含以下元素的列表：
+            * **proj[0]** (*str*): 映射函数, can be ``'linear'``, ``'relu'``, ``'tanh'``. See :data:`~textbrewer.presets.PROJ_MAP`.
+            * **proj[1]** (*int*): student模型的特征维度.
+            * **proj[2]** (*int*): teacher模型的特征维度.
+            * **proj[3]** (*dict*): 可选，提供诸如学习率之类的配置。如果未提供，学习率和优化器配置将遵循优化器的默认配置，否则将使用此处指定的配置。
 
     Example::
 
         from textbrewer import DistillationConfig
 
-        # simple configuration: use default values, or try different temperatures 
+        # 配置简单：使用默认值，或尝试不同的温度
         distill_config = DistillationConfig(temperature=8)
 
-        # adding intermediate feature matching
-        # under this setting, the returned dict results_T/S of adaptor_T/S should contain 'hidden' key.
-        # The mse loss between teacher's results_T['hidden'][10] and student's results_S['hidden'][3] will be computed
+        # 添加中间特征匹配
+        # 在此设置下，adaptor_T/S的返回字典results_T/S 应包含“hidden”键。
+        # 将计算teacher的results_T['hidden'][10]与student的results_S['hidden'][3]之间的mse损失
         distill_config = DistillationConfig(
             temperature=8,
             intermediate_matches = [{'layer_T':10, 'layer_S':3, 'feature':'hidden', 'loss':'hidden_mse', 'weight':1}]
         )
 
-        # multiple inatermediate feature matching. The teacher and the student have a  hidden_dim of 768 and 384 respectively. 
+        # 多个非中间特征匹配。teacher和student的hidden_​​dim分别为768和384。
         distill_config = DistillationConfig(
             temperature = 8, 
             intermediate_matches = [ \\
