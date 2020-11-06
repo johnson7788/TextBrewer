@@ -45,6 +45,7 @@ class GeneralDistiller(BasicDistiller):
                 self.projs_group.append(None)
 
         self.has_custom_matches = False
+        #自定义match
         if custom_matches:
             self.handles_T = []
             self.handles_S = []
@@ -71,14 +72,14 @@ class GeneralDistiller(BasicDistiller):
 
     def train(self, optimizer, dataloader, num_epochs, scheduler_class=None, scheduler_args=None, scheduler=None, max_grad_norm = -1.0, num_steps=None, callback=None, batch_postprocessor=None, **args):
         """
-        trains the student model. See :meth:`BasicDistiller.train`.
+        训练学生模型 See :meth:`BasicDistiller.train`.
         """
-        # update optimizer for projection layer
+        # 更新投影层的优化器, 如果参数提供了proj
         for proj,proj_group in zip(self.projs, self.projs_group):
             if proj is not None:
                 assert isinstance(proj,nn.Module)
                 optimizer.add_param_group({**{'params':proj.parameters()},**proj_group})
-
+        # 是否有自定义的matches
         if self.has_custom_matches:
             for proj_func,proj_group in zip(self.custom_matches_cache['match_proj_funcs'],
                                                    self.custom_matches_cache['match_proj_groups']):

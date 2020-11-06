@@ -58,6 +58,7 @@ class DistillationContext:
         self.model_S = None
         self.model_T = None
     def __enter__(self):
+        # 蒸馏器的上下文管理，把teacher模型设置为eval，student设置为train
         if isinstance(self.model_T,(list,tuple)):
             self.model_T_is_training = [model_t.training for model_t in self.model_T]
             for model_t in self.model_T:

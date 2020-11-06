@@ -51,37 +51,36 @@ class BasicDistiller(AbstractDistiller):
 
     def train(self, optimizer, dataloader, num_epochs, scheduler_class=None, scheduler_args=None, scheduler=None, max_grad_norm = -1.0, num_steps=None, callback=None, batch_postprocessor=None, **args):
         """
-        trains the student model.
+        训练student模型。
 
         Args:
             optimizer: optimizer.
             dataloader: dataset iterator.
             num_epochs (int): number of training epochs.
-            num_steps (int): number of training steps. If it is not None, distiller will ignore `num_epochs` and trains for `num_steps`, and dataloader can have an unkonwn size, i.e., has no `__len__` attribute. Dataloader will be cycled automatically after iterating over the whole dataset.
-            callback (Callable): function called after each epoch, can be None. It is called as ``callback(model=self.model_S, step = global_step)``. It can be used to evaluate the model at each checkpoint.
-            batch_postprocessor (Callable): a function for post-processing batches. It should take a batch and return a batch. Its output is fed to the models and adaptors.
-            scheduler_class (class): the class of the scheduler to be constructed.
-            scheduler_args (dict): arguments (excluding `optimizer`) passed to the `scheduler_class` to construct the scheduler object. See the example below.
-            scheduler (deprecated): used to adjust learning rate, optional, can be None, is deprecated in favor of `scheduler_class` and `scheduler_args`.
-            max_grad_norm (float): Maximum norm for the gradients (-1 means no clipping). Default: -1.0
-            **args: additional arguments fed to the model.
+            num_steps (int): 训练step数。如果不是None，distiller将忽略num_epochs并进行num_steps的训练，dataloader的大小可能未知，即没有__len__属性。遍历整个数据集后，Dataloader将自动循环。
+            callback (Callable): 在每个epoch之后调用的函数，可以为None。它称为``callback(model = self.model_S，step = global_step)``。它可用于在每个checkpoint评估模型。
+            batch_postprocessor (Callable): post-processing批次的函数。它应该需要一批并返回一批。其输出被馈送到模型和适配器。
+            scheduler_class (class): 要构造的调度程序的类.
+            scheduler_args (dict): 参数(不包括“optimizer”)传递给“scheduler_class”以构造调度程序对象。请参见下面的示例。
+            scheduler (deprecated): 用于调整学习率的可选参数(可选), 可以为None，不推荐使用“scheduler_class”和“ scheduler_args”。
+            max_grad_norm (float): 梯度的最大范数(-1表示无裁剪). Default: -1.0
+            **args: 提供给模型的其他参数.
         Note:
-            * If the batch is a list or tuple, model is called as: ``model(*batch, **args)``. Make sure the order of elements in the batch matches their order in ``model.forward``.
-            * If the batch is a dict, model is called as: ``model(**batch,**args)``. Make sure the keys of the batch match the arguments of the ``model.forward``.
+            * 如果批次是列表或元组，则模型称为：``model(*batch, **args)``。确保批次中元素的顺序与``model.forward``中的顺序相匹配。
+            * 如果批次是字典，则模型称为：``model(** batch，** args)``。确保批次的keys与``model.forward''的参数匹配。
         Note:
-            If you want to provide a lr scheduler, DON'T USE `scheduler` , use `scheduler_class` and `scheduler_args` instead. Example:
-
+            如果要提供lr调度程序，请不要使用“scheduler”，而应使用“scheduler_class”和“scheduler_args”。例：
             .. code-block::
 
                 from transformers import get_linear_schedule_with_warmup
                 distiller.train(optimizer, scheduler_class = get_linear_schedule_with_warmup, scheduler_args= {'num_warmup_steps': 100, 'num_training_steps': 1000})
         """
 
-        # update scheduler
+        # 更新 scheduler，如果不提供的话
         if scheduler_class is not None:
             # overwrite scheduler
             scheduler = scheduler_class(**{'optimizer':optimizer},**scheduler_args)
-
+        # fp16混合精度计算
         if self.t_config.fp16:
             if not has_apex:
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
@@ -92,6 +91,7 @@ class BasicDistiller(AbstractDistiller):
                 self.model_T =models[1:]
             else:
                 (self.model_S, self.model_T), optimizer = amp.initialize([self.model_S, self.model_T], optimizer, opt_level=self.t_config.fp16_opt_level)
+        # 是否是分布式计算
         if self.local_rank != -1:
             self.model_S = torch.nn.parallel.DistributedDataParallel(self.model_S,
                         device_ids = [self.local_rank], output_device = self.local_rank,
@@ -116,8 +116,9 @@ class BasicDistiller(AbstractDistiller):
                 self.model_T = [torch.nn.DataParallel(model_t) for model_t in self.model_T]
             else:
                 self.model_T = torch.nn.DataParallel(self.model_T)
+        # 是否显示进度条
         tqdm_disable = None if self.rank == 0 else True
-
+        # 当num_steps不提供时，自动计算
         if num_steps is not None:
             if self.d_config.is_caching_logits is True:
                 logger.warning("is_caching_logits is True, but num_steps is not None!")

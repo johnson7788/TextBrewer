@@ -8,3 +8,5 @@ dist/
 .idea
 *.pdf
 *.png
+*.pkl
+examples/random_tokens_example/saved_models/

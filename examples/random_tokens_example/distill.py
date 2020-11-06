@@ -143,7 +143,7 @@ distiller = GeneralDistiller(
     model_T=teacher_model, model_S=student_model,
     adaptor_T=simple_adaptor, adaptor_S=simple_adaptor)
 
-# Start distilling
+#开始蒸馏
 with distiller:
     distiller.train(optimizer, dataloader, num_epochs=num_epochs,
                     scheduler_class=scheduler_class, scheduler_args=scheduler_args, callback=callback_fun)
