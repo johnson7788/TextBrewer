@@ -1,15 +1,14 @@
 # Simple Example
 
-This runable example demonstrates the usage of TextBrewer.
+此可运行样本演示了TextBrewer的用法。
 
-Teacher is BERT-base. Student is a 3-layer BERT.
+teacher是基于BERT的。student是3层BERT。
 
-Task is text classification. We generate some random token ids and labels as inputs.
+任务是文本分类。我们生成一些随机tokenID和标签作为输入。
 
-So this simple example is for pedagogical purpose only.
+因此，这个简单的样本仅用于教学目的。
 
-We also list the summarization of model parameters using the utility provided by the toolkit.
-
+我们还将使用toolkit提供的实用工具列出模型参数的摘要。
 
 ## Requirements
 
