@@ -92,11 +92,19 @@ class GeneralDistiller(BasicDistiller):
         super(GeneralDistiller, self).train(optimizer, dataloader, num_epochs, scheduler_class, scheduler_args, scheduler, max_grad_norm, num_steps, callback, batch_postprocessor, **args)
 
     def train_on_batch(self, batch, args):
+        """
+        训练一个batch的数据
+        :param batch: batch可能包括input_ids, attention_mask, labels
+        :param args:
+        :return:
+        """
         if type(batch) is dict:
             for k,v in batch.items():
                 if type(v) is torch.Tensor:
                     batch[k] = v.to(self.t_config.device)
+            # 使用teacher模型计算输出结果
             with torch.no_grad():
+                # 开始调用teacher的模型，例如BertForSequenceClassification, 返回 (loss), logits, (hidden_states), (attentions)
                 results_T = self.model_T(**batch, **args)
             results_S = self.model_S(**batch, **args)
         else:
@@ -105,15 +113,15 @@ class GeneralDistiller(BasicDistiller):
             with torch.no_grad():
                 results_T = self.model_T(*batch, **args)
             results_S = self.model_S(*batch, **args)
-
+        # 对teacher和student生成的结果使用自定义的adaptor, post_adaptor是对dict_obejct进行整理，就是把results_T和results_S整理下
         results_T = post_adaptor(self.adaptor_T(batch,results_T))
         results_S = post_adaptor(self.adaptor_S(batch,results_S))
-
+        #总的损失
         total_loss  = 0
         if 'logits' in results_T and 'logits' in results_S:
             logits_list_T = results_T['logits']  # list of tensor
             logits_list_S = results_S['logits']  # list of tensor
-
+            # logits_mask仅适用于形状为(batch_size，length，num_labels)的logits。通常用于序列标注任务中沿长度方向mask的区域。
             if 'logits_mask' in results_S:
                 masks_list_S = results_S['logits_mask']
                 logits_list_S = select_logits_with_mask(logits_list_S,masks_list_S)  #(mask_sum, num_of_class)
@@ -132,6 +140,7 @@ class GeneralDistiller(BasicDistiller):
                     kd_loss = self.kd_loss(l_S, l_T, temperature) * self.d_config.kd_loss_weight
                     total_loss += kd_loss
             else:
+                # 对一个batch中的Teacher的logits和Student的logits进行对比，计算损失
                 for l_T,l_S in zip(logits_list_T,logits_list_S):
                     if self.d_config.temperature_scheduler is not None:
                         temperature = self.d_config.temperature_scheduler(l_S, l_T, self.d_config.temperature)
@@ -139,19 +148,25 @@ class GeneralDistiller(BasicDistiller):
                         temperature = self.d_config.temperature
                     kd_loss = self.kd_loss(l_S, l_T, temperature) * self.d_config.kd_loss_weight
                     total_loss += kd_loss
-
+        # teacher的中间层的hidden 和attention特征向量
         inters_T = {feature: results_T.get(feature,[]) for feature in FEATURES}
         inters_S = {feature: results_S.get(feature,[]) for feature in FEATURES}
         inputs_mask_T = results_T.get('inputs_mask',None)
         inputs_mask_S = results_S.get('inputs_mask',None)
+        # transformers中间层映射匹配
         for ith,inter_match in enumerate(self.d_config.intermediate_matches):
+            # int， teacher的第几次
             layer_T = inter_match.layer_T
             layer_S = inter_match.layer_S
+            #  hidden 还是attention
             feature = inter_match.feature
+            #损失的类型，例如'hidden_mse'
             loss_type = inter_match.loss
+            # 匹配权重值, eg: 1
             match_weight = inter_match.weight
+            # 根据字典，获取真实的损失的函数 eg: presets.py 中的hid_mse_loss
             match_loss = MATCH_LOSS_MAP[loss_type]
-
+            # 如果提供的格式是'layer_T': [0, 0], 'layer_S': [0, 0]这样的
             if type(layer_S) is list and type(layer_T) is list:
                 inter_S = [inters_S[feature][s] for s in layer_S]
                 inter_T = [inters_T[feature][t] for t in layer_T]
@@ -159,14 +174,17 @@ class GeneralDistiller(BasicDistiller):
                     #inter_T = [self.projs[ith](t) for t in inter_T]
                     inter_S = [self.projs[ith](s) for s in inter_S]
             else:
+                # 例如取Student的hidden的第0层, inters_S{hidden:[], attention:[]} ---> torch.Size([32, 128, 768])
                 inter_S = inters_S[feature][layer_S]
+                # 取教师层的hidden或attention的值，教师层的层数多，学生的层数少，所以就可能出现这种对应情况'layer_T': [8, 8], 'layer_S': [2, 2]
                 inter_T = inters_T[feature][layer_T]
+                # 如果投影层存在，对学生层投影
                 if self.projs[ith]:
                     #inter_T = self.projs[ith](inter_T)
                     inter_S = self.projs[ith](inter_S)
             total_loss += match_loss(inter_S, inter_T, mask=inputs_mask_S) * match_weight
 
-
+        #是否有自定义的match
         if self.has_custom_matches:
             for hook_T, hook_S, match_weight, match_loss, proj_func  in \
                     zip(self.custom_matches_cache['hook_outputs_T'], self.custom_matches_cache['hook_outputs_S'],
@@ -177,7 +195,7 @@ class GeneralDistiller(BasicDistiller):
                 total_loss += match_weight * match_loss(hook_S,hook_T,inputs_mask_S,inputs_mask_T)
             self.custom_matches_cache['hook_outputs_T'] = []
             self.custom_matches_cache['hook_outputs_S'] = []
-
+        # 如果损失也在Student的计算中
         if 'losses' in results_S:
             for loss in results_S['losses']:
                 # in case of multi-GPU

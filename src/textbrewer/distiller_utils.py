@@ -154,6 +154,11 @@ class BasicAdaptor:
 
 
 def post_adaptor(dict_object):
+    """
+    对dict_obejct进行整理
+    :param dict_object:  自定义adaptor返回的内容
+    :return:
+    """
     if 'logits' in dict_object:
         logits = dict_object['logits']
         if not isinstance(logits,(list,tuple)):

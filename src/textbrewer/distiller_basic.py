@@ -40,6 +40,12 @@ class BasicDistiller(AbstractDistiller):
 
 
     def write_loss(self, total_loss, writer_step):
+        """
+        损失写入到tensorboard
+        :param total_loss:
+        :param writer_step:
+        :return:
+        """
         if self.rank == 0:
             cpu_total_loss = total_loss.cpu().item() * self.t_config.gradient_accumulation_steps
             self.tb_writer.add_scalar('scalar/total_loss', cpu_total_loss, writer_step)
@@ -118,7 +124,7 @@ class BasicDistiller(AbstractDistiller):
                 self.model_T = torch.nn.DataParallel(self.model_T)
         # 是否显示进度条
         tqdm_disable = None if self.rank == 0 else True
-        # 当num_steps不提供时，自动计算
+        # 当num_steps提供时，使用num_steps计算，忽略epoch
         if num_steps is not None:
             if self.d_config.is_caching_logits is True:
                 logger.warning("is_caching_logits is True, but num_steps is not None!")
@@ -174,12 +180,15 @@ class BasicDistiller(AbstractDistiller):
                     logger.info("Training finished")
                     return
 
-
+        # 每个epoch训练的step
         train_steps_per_epoch = len(dataloader)//self.t_config.gradient_accumulation_steps
+        # 总共训练的steps数
         total_global_steps = train_steps_per_epoch * num_epochs
+        #每多少个steps打印一次
         print_every = train_steps_per_epoch // self.print_freq
         if print_every == 0:
             print_every = train_steps_per_epoch
+        #存储checkpoint的序号
         checkpoints = [int(train_steps_per_epoch*ci/self.t_config.ckpt_frequency) for ci in range(self.t_config.ckpt_frequency)]
         logger.info(f"Training steps per epoch: {train_steps_per_epoch}")
         logger.info(f"Checkpoints(step): {checkpoints}")
@@ -204,41 +213,51 @@ class BasicDistiller(AbstractDistiller):
             for step, batch in tqdm(enumerate(dataloader),disable=tqdm_disable):
                 if self.d_config.is_caching_logits is False and batch_postprocessor is not None:
                         batch = batch_postprocessor(batch)
+                #计算这个batch的损失
                 total_loss = self.train_on_batch(batch,args)
                 total_loss /= self.t_config.gradient_accumulation_steps
                 if self.t_config.fp16:
                     with amp.scale_loss(total_loss,optimizer) as scaled_loss:
                         scaled_loss.backward()
                 else:
+                    #损失反向传播
                     total_loss.backward()
-
+                # 损失写入到tensorboard
                 self.write_loss(total_loss, writer_step)
                 writer_step += 1
 
+                #是否做梯度累积
                 if (step+1)%self.t_config.gradient_accumulation_steps == 0:
+                    #是否梯度裁剪
                     if max_grad_norm > 0:
                         if self.t_config.fp16:
                             torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), max_grad_norm)
                         else:
                             torch.nn.utils.clip_grad_norm_(self.model_S.parameters(), max_grad_norm) 
+                    #根据梯度更新网络参数
                     optimizer.step()
+                    #调整学习率
                     if scheduler is not None:
                         scheduler.step()
+                    #清空过往梯度
                     optimizer.zero_grad()
                     global_step += 1
+                    # 蒸馏损失scheduler
                     if self.d_config.kd_loss_weight_scheduler is not None:
                         self.d_config.kd_loss_weight = \
                             self.d_config.kd_loss_weight_scheduler(global_step/total_global_steps)
+                    #hard label
                     if self.d_config.hard_label_weight_scheduler is not None:
                         self.d_config.hard_label_weight = \
                             self.d_config.hard_label_weight_scheduler(global_step/total_global_steps)
-
+                    #是否打印下记录
                     if (global_step) % print_every == 0:
                         logger.info(f"Global step: {global_step}, epoch step:{step+1}")
+                    # 是否保存模型
                     if (global_step%train_steps_per_epoch in checkpoints) \
                             and ((current_epoch+1)%self.t_config.ckpt_epoch_frequency==0 or current_epoch+1==num_epochs):
                         self.save_and_callback(global_step, step, current_epoch, callback)
-
+            #训练完成1个epoch
             logger.info(f"Epoch {current_epoch+1} finished")
 
     def train_on_batch(self, batch, args):

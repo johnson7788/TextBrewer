@@ -77,8 +77,8 @@ print(result)
 
 
 def simple_adaptor(batch, model_outputs):
-    # The second element of model_outputs is the logits before softmax
-    # The third element of model_outputs is hidden states
+    # model_outputs的第二个元素是softmax之前的logits
+    # model_outputs的第三个元素是隐藏状态
     return {'logits': model_outputs[1],
             'hidden': model_outputs[2],
             'inputs_mask': batch['attention_mask']}

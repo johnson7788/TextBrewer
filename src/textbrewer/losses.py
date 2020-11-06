@@ -22,7 +22,7 @@ def kd_mse_loss(logits_S, logits_T, temperature=1):
 
 def kd_ce_loss(logits_S, logits_T, temperature=1):
     '''
-    Calculate the cross entropy between logits_S and logits_T
+    计算logits_S和logits_T之间的交叉熵损失
 
     :param logits_S: Tensor of shape (batch_size, length, num_labels) or (batch_size, num_labels)
     :param logits_T: Tensor of shape (batch_size, length, num_labels) or (batch_size, num_labels)
@@ -126,9 +126,9 @@ def att_ce_mean_loss(attention_S, attention_T, mask=None):
 
 def hid_mse_loss(state_S, state_T, mask=None):
     '''
-    * Calculates the mse loss between `state_S` and `state_T`, which are the hidden state of the models.
-    * If the `inputs_mask` is given, masks the positions where ``input_mask==0``.
-    * If the hidden sizes of student and teacher are different, 'proj' option is required in `inetermediate_matches` to match the dimensions.
+    * 计算“ state_S”和“ state_T”之间的mse损失，这是模型的隐藏状态。
+    * 如果`inputs_mask` 给定,  ``input_mask==0``是mask的位置.
+    * 如果student和teacher的hidden size不同，则在“inetermediate_matches”中需要使用“proj”选项以匹配维度。
 
     :param torch.Tensor state_S: tensor of shape  (*batch_size*, *length*, *hidden_size*)
     :param torch.Tensor state_T: tensor of shape  (*batch_size*, *length*, *hidden_size*)
@@ -138,6 +138,7 @@ def hid_mse_loss(state_S, state_T, mask=None):
         loss = F.mse_loss(state_S, state_T)
     else:
         mask = mask.to(state_S)
+        # 计算所有没有mask的词的总数, 这里把维度也乘以进来了
         valid_count = mask.sum() * state_S.size(-1)
         loss = (F.mse_loss(state_S, state_T, reduction='none') * mask.unsqueeze(-1)).sum() / valid_count
     return loss
