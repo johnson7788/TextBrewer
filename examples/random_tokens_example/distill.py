@@ -8,7 +8,10 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 
 # device
-device = torch.device('cpu')
+if torch.cuda.is_available():
+    device = torch.device('cuda:0')
+else:
+    device = torch.device('cpu')
 
 # 定义teacher模型和student模型配置, 默认num_labels=2
 bert_config = BertConfig.from_json_file('bert_config/bert_config.json')
