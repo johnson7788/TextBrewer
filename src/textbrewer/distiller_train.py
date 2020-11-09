@@ -2,11 +2,11 @@ from .distiller_utils import *
 
 class BasicTrainer:
     """
-    It performs supervised training, not distillation. It can be used for training the teacher model.
+    它执行监督训练，而不是蒸馏。它可以用于训练teacher模型。
 
     Args:
-        train_config (:class:`TrainingConfig`): training configuration.
-        model (:class:`torch.nn.Module`): model to be trained.
+        train_config (:class:`TrainingConfig`): 训练的配置
+        model (:class:`torch.nn.Module`): 训练的模型
         adaptor (Callable)：adaptor of the model.
     
     The role of `adaptor` is explained in :py:func:`adaptor`.
@@ -38,9 +38,9 @@ class BasicTrainer:
 
     def train(self, optimizer, dataloader, num_epochs, scheduler_class=None, scheduler_args=None, scheduler=None, max_grad_norm = -1.0, num_steps=None, callback=None, batch_postprocessor=None, **args):
         """
-        trains the model. See :meth:`BasicDistiller.train`.
+        训练模型. See :meth:`BasicDistiller.train`.
         """
-        # update scheduler
+        # 更新 scheduler
         if scheduler_class is not None:
             # overwrite scheduler
             scheduler = scheduler_class(**{'optimizer':optimizer},**scheduler_args)
@@ -183,6 +183,12 @@ class BasicTrainer:
             logger.info(f"Epoch {current_epoch+1} finished")
 
     def train_on_batch(self, batch, args) -> torch.Tensor:
+        """
+        训练一个batch的模型
+        :param batch:
+        :param args:
+        :return:
+        """
         if type(batch) is dict:
             for k,v in batch.items():
                 if type(v) is torch.Tensor:

@@ -68,6 +68,13 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False)
 
 
 def divide_parameters(named_parameters,lr=None):
+    """
+    给不同的参数分配学习率是否衰减
+    :param named_parameters:
+    :param lr:
+    :return:
+    """
+    # 所有的bias和LayerNorm 都不做衰减
     no_decay = ['bias', 'LayerNorm.bias','LayerNorm.weight']
     decay_parameters_names = list(zip(*[(p,n) for n,p in named_parameters if not any((di in n) for di in no_decay)]))
     no_decay_parameters_names = list(zip(*[(p,n) for n,p in named_parameters if any((di in n) for di in no_decay)]))

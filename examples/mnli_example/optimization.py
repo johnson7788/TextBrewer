@@ -68,12 +68,11 @@ SCHEDULES = {
 
 
 class BERTAdam(Optimizer):
-    """Implements BERT version of Adam algorithm with weight decay fix (and no ).
+    """使用权重衰减修正实现BERT版本的Adam算法(and no ).
     Params:
         lr: learning rate
-        warmup: portion of t_total for the warmup, -1  means no warmup. Default: -1
-        t_total: total number of training steps for the learning
-            rate schedule, -1  means constant learning rate. Default: -1
+        warmup: 预热的t_total的一部分，-1表示不预热。默认值：-1
+        t_total: 学习率schedule的训练步骤总数，-1表示恒定的学习率。默认值：-1
         schedule: schedule to use for the warmup (see above). Default: 'warmup_linear'
         b1: Adams b1. Default: 0.9
         b2: Adams b2. Default: 0.999
@@ -95,6 +94,7 @@ class BERTAdam(Optimizer):
             raise ValueError("Invalid b1 parameter: {} - should be in [0.0, 1.0[".format(b1))
         if not 0.0 <= b2 < 1.0:
             raise ValueError("Invalid b2 parameter: {} - should be in [0.0, 1.0[".format(b2))
+        # Adams epsilon
         if not e >= 0.0:
             raise ValueError("Invalid epsilon value: {} - should be >= 0.0".format(e))
 
@@ -141,11 +141,10 @@ class BERTAdam(Optimizer):
                 state['exp_avg_sq'] = torch.zeros_like(p.data)
     '''
     def step(self, closure=None):
-        """Performs a single optimization step.
+        """执行一个优化步骤.
 
         Arguments:
-            closure (callable, optional): A closure that reevaluates the model
-                and returns the loss.
+            closure (callable, optional): 重新评估模型并返回损失的闭包。
         """
         loss = None
         if closure is not None:

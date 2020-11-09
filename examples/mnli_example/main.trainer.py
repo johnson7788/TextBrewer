@@ -122,6 +122,7 @@ def main():
     #Prepare GLUE task
     processor = processors[args.task_name]()
     args.output_mode = output_modes[args.task_name]
+    # eg： MNLI，['contradiction', 'entailment', 'neutral'] --> [“矛盾”，“必然”，“中立”]
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
@@ -130,6 +131,7 @@ def main():
     eval_datasets  = None
     num_train_steps = None
     tokenizer = BertTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
+    # 加载数据集, 计算steps
     if args.do_train:
         train_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
         if args.aux_task_name:
@@ -141,12 +143,12 @@ def main():
         eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
         for eval_task in eval_task_names:
             eval_datasets.append(load_and_cache_examples(args, eval_task, tokenizer, evaluate=True))
-    logger.info("Data loaded")
+    logger.info("数据集已加载")
 
 
-    #Build Model and load checkpoint
+    #加载模型并初始化
     model_S = BertForGLUESimple(bert_config_S, num_labels=num_labels,args=args)
-    #Load student
+    #初始化student模型
     if args.load_model_type=='bert':
         assert args.init_checkpoint_S is not None
         state_dict_S = torch.load(args.init_checkpoint_S, map_location='cpu')
@@ -179,7 +181,7 @@ def main():
         params = list(model_S.named_parameters())
         all_trainable_params = divide_parameters(params, lr=args.learning_rate)
         logger.info("Length of all_trainable_params: %d", len(all_trainable_params))
-
+        # 优化器设置
         optimizer = BERTAdam(all_trainable_params,lr=args.learning_rate,
                              warmup=args.warmup_proportion,t_total=num_train_steps,schedule=args.schedule,
                              s_opt1=args.s_opt1, s_opt2=args.s_opt2, s_opt3=args.s_opt3)
@@ -189,7 +191,7 @@ def main():
         logger.info("  Forward batch size = %d", forward_batch_size)
         logger.info("  Num backward steps = %d", num_train_steps)
 
-        ########### DISTILLATION ###########
+        ########### 蒸馏 ###########
         train_config = TrainingConfig(
             gradient_accumulation_steps = args.gradient_accumulation_steps,
             ckpt_frequency = args.ckpt_frequency,
@@ -197,7 +199,7 @@ def main():
             output_dir = args.output_dir,
             device = args.device)
 
-
+        #执行监督训练，而不是蒸馏。它可以用于训练teacher模型。初始化模型
         distiller = BasicTrainer(train_config = train_config,
                                  model = model_S,
                                  adaptor = BertForGLUESimpleAdaptorTraining)

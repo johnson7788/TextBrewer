@@ -12,3 +12,4 @@ dist/
 examples/random_tokens_example/saved_models/
 examples/mnli_example/data_root_dir/
 examples/mnli_example/bert-base-uncased/
+examples/mnli_example/output_root_dir/
