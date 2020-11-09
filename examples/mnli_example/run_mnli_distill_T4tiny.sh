@@ -1,3 +1,5 @@
+export PYTHONPATH="${PYTHONPATH}:/home/wac/johnson/johnson/TextBrewer/examples/mnli_example:/home/wac/johnson/johnson/TextBrewer/src"
+
 #set hyperparameters
 BERT_DIR=bert_model
 OUTPUT_ROOT_DIR=output_root_dir
@@ -10,7 +12,7 @@ accu=1
 ep=40
 lr=10
 temperature=8
-batch_size=24
+batch_size=16
 length=128
 sopt1=30 # The final learning rate is 1/sopt1 of the initial learning rate
 torch_seed=9580
