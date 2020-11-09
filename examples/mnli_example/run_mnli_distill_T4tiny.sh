@@ -34,7 +34,6 @@ python -u main.distill.py \
     --bert_config_file_S $STUDENT_CONF_DIR/bert_config_L4t.json \
     --tuned_checkpoint_T $trained_teacher_model \
     --load_model_type none \
-    --do_lower_case \
     --do_train \
     --do_eval \
     --do_predict \
