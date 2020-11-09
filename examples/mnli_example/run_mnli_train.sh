@@ -11,7 +11,7 @@ accu=1
 ep=3
 lr=2
 batch_size=8
-length=128
+length=70
 sopt1=30 # The final learning rate is 1/sopt1 of the initial learning rate
 torch_seed=9580
 
