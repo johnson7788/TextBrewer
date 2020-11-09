@@ -132,7 +132,7 @@ class MnliProcessor(DataProcessor):
             "dev_matched")
 
     def get_labels(self):
-        """See base class."""
+        """MNLI的labels"""
         return ["contradiction", "entailment", "neutral"]
 
     def _create_examples(self, lines, set_type):
@@ -391,35 +391,51 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
                                  sequence_a_segment_id=0, sequence_b_segment_id=1,
                                  cls_token_segment_id=1, pad_token_segment_id=0,
                                  mask_padding_with_zero=True):
-    """ Loads a data file into a list of `InputBatch`s
-        `cls_token_at_end` define the location of the CLS token:
+    """
+    将数据文件加载到`InputBatch`
+    :param examples:  样本集
+    :param label_list:  labels eg： ['contradiction', 'entailment', 'neutral']
+    :param max_seq_length:  最大序列长度，eg： 128
+    :param tokenizer:  初始化后的tokenizer
+    :param output_mode:  例如'classification' 或者 regression
+    :param cls_token_at_end: 定义CLStoken的位置：
             - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
             - True (XLNet/GPT pattern): A + [SEP] + B + [SEP] + [CLS]
-        `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
+    :param pad_on_left: default: False 从左开始pad
+    :param cls_token:  default: [CLS]
+    :param sep_token:  default: [se[]
+    :param pad_token:  default: 0
+    :param sequence_a_segment_id:    句子a的id 0
+    :param sequence_b_segment_id:    句子b的id1
+    :param cls_token_segment_id:  定义与CLS token关联的segment ID (0 for BERT, 2 for XLNet)
+    :param pad_token_segment_id:  使用padding的token segment id
+    :param mask_padding_with_zero:  mask也padding为0
+    :return:
     """
-
+    # label映射为id
     label_map = {label : i for i, label in enumerate(label_list)}
 
     features = []
     for (ex_index, example) in enumerate(examples):
+        # 每10000条，记录下日志
         if ex_index % 10000 == 0:
             logger.info("Writing example %d of %d" % (ex_index, len(examples)))
-
+        #对句子a进行tokenizer
         tokens_a = tokenizer.tokenize(example.text_a)
 
         tokens_b = None
+        # 如果句子b存在，对句子btokenizer
         if example.text_b:
             tokens_b = tokenizer.tokenize(example.text_b)
-            # Modifies `tokens_a` and `tokens_b` in place so that the total
-            # length is less than the specified length.
-            # Account for [CLS], [SEP], [SEP] with "- 3"
+            # in_place修改`tokens_a`和`tokens_b`以便总长度小于指定长度
+            # 因为 [CLS], [SEP], [SEP] 的存在，所以总长度需要减去3 "- 3"
             _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
         else:
-            # Account for [CLS] and [SEP] with "- 2"
+            # 如果不存在句子b，那么总长度减去2即可。 Account for [CLS] and [SEP] with "- 2"
             if len(tokens_a) > max_seq_length - 2:
                 tokens_a = tokens_a[:(max_seq_length - 2)]
 
-        # The convention in BERT is:
+        # Bert的惯例是:
         # (a) For sequence pairs:
         #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
         #  type_ids:   0   0  0    0    0     0       0   0   1  1  1  1   1   1
@@ -427,16 +443,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         #  tokens:   [CLS] the dog is hairy . [SEP]
         #  type_ids:   0   0   0   0  0     0   0
         #
-        # Where "type_ids" are used to indicate whether this is the first
-        # sequence or the second sequence. The embedding vectors for `type=0` and
-        # `type=1` were learned during pre-training and are added to the wordpiece
-        # embedding vector (and position vector). This is not *strictly* necessary
-        # since the [SEP] token unambiguously separates the sequences, but it makes
-        # it easier for the model to learn the concept of sequences.
-        #
-        # For classification tasks, the first vector (corresponding to [CLS]) is
-        # used as as the "sentence vector". Note that this only makes sense because
-        # the entire model is fine-tuned.
+        # 其中，“type_ids”用于指示这是第一个序列还是第二个序列。在预训练期间学习了用于`type=0` and `type=1` 的嵌入向量，并将其添加到单词嵌入向量(和位置向量)中。 不是必须的
+        # 因为[SEP]token明确地分隔了序列，但是使模型更容易学习序列的概念。
+        # 对于分类任务，第一个向量(对应于[CLS])用作“句子向量”。请注意，这仅是有意义的，因为对整个模型进行了微调。
         tokens = tokens_a + [sep_token]
         segment_ids = [sequence_a_segment_id] * len(tokens)
 

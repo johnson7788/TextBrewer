@@ -44,10 +44,10 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False)
         str(args.max_seq_length),
         str(task)))
     if os.path.exists(cached_features_file):
-        logger.info("Loading features from cached file %s", cached_features_file)
+        logger.info("从缓存加载features %s", cached_features_file)
         features = torch.load(cached_features_file)
     else:
-        logger.info("Creating features from dataset file at %s", data_dir)
+        logger.info("没有发现缓存features，根据datafile生成features %s", data_dir)
         label_list = processor.get_labels()
         examples = processor.get_dev_examples(data_dir) if evaluate else processor.get_train_examples(data_dir)
         features = convert_examples_to_features(examples, label_list, args.max_seq_length, tokenizer, output_mode,
