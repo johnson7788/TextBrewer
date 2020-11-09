@@ -10,7 +10,7 @@ STUDENT_CONF_DIR=../student_config/bert_base_cased_config
 accu=1
 ep=3
 lr=2
-batch_size=8
+batch_size=16
 length=128
 sopt1=30 # The final learning rate is 1/sopt1 of the initial learning rate
 torch_seed=9580
@@ -31,7 +31,6 @@ python -u main.trainer.py \
     --bert_config_file_T none \
     --bert_config_file_S $BERT_DIR/config.json \
     --init_checkpoint_S  $BERT_DIR/pytorch_model.bin \
-    --do_lower_case \
     --do_train \
     --do_eval \
     --do_predict \
