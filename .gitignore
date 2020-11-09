@@ -14,3 +14,4 @@ examples/mnli_example/data_root_dir/
 examples/mnli_example/bert-base-uncased/
 examples/mnli_example/output_root_dir/
 examples/mnli_example/bert_model/
+examples/mnli_example/trained_teacher_model/
