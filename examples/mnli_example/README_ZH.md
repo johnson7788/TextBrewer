@@ -28,3 +28,6 @@ python main.distill.py --vocab_file bert_model/vocab.txt --data_dir data_root_di
  
 * 如果是运行 run_mnli_distill_T4tiny.sh, 还需要指定训练好的教师模型权重文件 trained_teacher_model
 * 如果是运行 run_mnli_distill_multiteacher.sh, 需要指定多个训练好的教师模型权重文件 trained_teacher_model_1, trained_teacher_model_2, trained_teacher_model_3
+
+
+# 中文测试
