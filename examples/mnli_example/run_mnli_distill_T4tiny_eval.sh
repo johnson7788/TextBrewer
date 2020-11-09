@@ -4,7 +4,7 @@ export PYTHONPATH="${PYTHONPATH}:/home/wac/johnson/johnson/TextBrewer/examples/m
 BERT_DIR=bert_model
 OUTPUT_ROOT_DIR=output_root_dir
 DATA_ROOT_DIR=data_root_dir
-FINNAL_MODEL=finnal_model/gs3747.pkl
+FINAL_MODEL=finnal_model/gs3747.pkl
 
 STUDENT_CONF_DIR=../student_config/bert_base_cased_config
 
@@ -33,7 +33,7 @@ python -u main.distill.py \
     --bert_config_file_T $BERT_DIR/config.json \
     --bert_config_file_S $STUDENT_CONF_DIR/bert_config_L4t.json \
     --load_model_type all \
-    --tuned_checkpoint_S $FINNAL_MODEL \
+    --tuned_checkpoint_S $FINAL_MODEL \
     --do_eval \
     --do_predict \
     --max_seq_length ${length} \
