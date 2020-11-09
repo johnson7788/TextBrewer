@@ -8,22 +8,20 @@ def parse(opt=None):
     ## Required parameters
 
     parser.add_argument("--vocab_file", default=None, type=str, required=True,
-                        help="The vocabulary file that the BERT model was trained on.")
+                        help="训练BERT模型的单词表文件。")
     parser.add_argument("--output_dir", default=None, type=str, required=True,
-                        help="The output directory where the model checkpoints will be written.")
+                        help="模型checkpoint的输出目录。")
 
     ## Other parameters
-    parser.add_argument("--data_dir", default=None, type=str)
+    parser.add_argument("--data_dir", default=None, type=str,help="数据目录")
     parser.add_argument("--do_lower_case", action='store_true',
-                        help="Whether to lower case the input text. Should be True for uncased "
-                             "models and False for cased models.")
+                        help="是否小写输入文本。对于uncased的模型应为True，对于cased的模型应为False。")
     parser.add_argument("--max_seq_length", default=416, type=int,
-                        help="The maximum total input sequence length after WordPiece tokenization. Sequences "
-                             "longer than this will be truncated, and sequences shorter than this will be padded.")
-    parser.add_argument("--do_train", default=False, action='store_true', help="Whether to run training.")
-    parser.add_argument("--do_predict", default=False, action='store_true', help="Whether to run eval on the dev set.")
-    parser.add_argument("--train_batch_size", default=32, type=int, help="Total batch size for training.")
-    parser.add_argument("--predict_batch_size", default=8, type=int, help="Total batch size for predictions.")
+                        help="WordPiece标签化之后的最大总输入序列长度。长度大于此长度的序列将被截断，小于长度的序列将被填充。")
+    parser.add_argument("--do_train", default=False, action='store_true', help="是否训练")
+    parser.add_argument("--do_predict", default=False, action='store_true', help="是否在评估集上评估")
+    parser.add_argument("--train_batch_size", default=32, type=int, help="训练集batch_size")
+    parser.add_argument("--predict_batch_size", default=8, type=int, help="预测时batch_size")
     parser.add_argument("--learning_rate", default=3e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--num_train_epochs", default=3.0, type=float,
                         help="Total number of training epochs to perform.")
