@@ -33,9 +33,9 @@ def args_check(args):
     if not args.do_train and not args.do_predict:
         raise ValueError("At least one of `do_train` or `do_predict` must be True.")
 
-    if args.local_rank == -1 or args.no_cuda:
-        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-        n_gpu = torch.cuda.device_count() if not args.no_cuda else 0
+    if args.local_rank == -1:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        n_gpu = torch.cuda.device_count() if torch.cuda.is_available() else 0
     else:
         device = torch.device("cuda", args.local_rank)
         n_gpu = 1

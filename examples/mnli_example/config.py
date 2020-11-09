@@ -31,10 +31,6 @@ def parse(opt=None):
     parser.add_argument("--verbose_logging", default=False, action='store_true',
                         help="If true, all of the warnings related to data processing will be printed. "
                              "A number of warnings are expected for a normal SQuAD evaluation.")
-    parser.add_argument("--no_cuda",
-                        default=False,
-                        action='store_true',
-                        help="Whether not to use CUDA when available")
     parser.add_argument('--gradient_accumulation_steps',
                         type=int,
                         default=1,
