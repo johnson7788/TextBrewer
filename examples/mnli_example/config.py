@@ -73,7 +73,7 @@ def parse(opt=None):
     parser.add_argument('--output_att_sum', default='false',choices=['true','false'])
     parser.add_argument('--output_encoded_layers'  ,default='true',choices=['true','false'])
     parser.add_argument('--output_attention_layers',default='true',choices=['true','false'])
-    parser.add_argument('--matches',nargs='*',type=str)
+    parser.add_argument('--matches',nargs='*',type=str, help="使用matches.py中matches字典预先定义的哪些match格式")
     parser.add_argument('--task_name',type=str,choices=list(processors.keys()))
     parser.add_argument('--aux_task_name',type=str,choices=list(processors.keys()),default=None)
     parser.add_argument('--aux_data_dir', type=str)

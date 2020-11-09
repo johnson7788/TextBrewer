@@ -94,6 +94,12 @@ class BertForGLUE(nn.Module):
 
 class BertForGLUESimple(nn.Module):
     def __init__(self, config, num_labels, args):
+        """
+        简单的分类任务
+        :param config: 模型的配置 从config.json加载
+        :param num_labels: int   eg ：3
+        :param args:
+        """
         super(BertForGLUESimple, self).__init__()
         self.num_labels = num_labels
         self.output_encoded_layers   = (args.output_encoded_layers=='true')
@@ -105,6 +111,14 @@ class BertForGLUESimple(nn.Module):
         self.apply(initializer)
 
     def forward(self, input_ids, attention_mask, token_type_ids, labels=None):
+        """
+        SPC任务分类
+        :param input_ids:
+        :param attention_mask:
+        :param token_type_ids:
+        :param labels:
+        :return:
+        """
         sequence_output, pooled_output, attention_output = self.bert(input_ids, token_type_ids, attention_mask,
                                                                     output_all_encoded_layers=(self.output_encoded_layers),
                                                                     output_all_attention_layers=(self.output_attention_layers))

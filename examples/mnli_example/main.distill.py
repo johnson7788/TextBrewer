@@ -132,6 +132,7 @@ def main():
     eval_datasets  = None
     num_train_steps = None
     tokenizer = BertTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
+    # 加载数据集
     if args.do_train:
         train_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
         if args.aux_task_name:
@@ -143,13 +144,12 @@ def main():
         eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
         for eval_task in eval_task_names:
             eval_datasets.append(load_and_cache_examples(args, eval_task, tokenizer, evaluate=True))
-    logger.info("Data loaded")
+    logger.info("数据集加载成功")
 
-
-    #Build Model and load checkpoint
+    #加载模型，加载teacher和student模型
     model_T = BertForGLUESimple(bert_config_T, num_labels=num_labels,args=args)
     model_S = BertForGLUESimple(bert_config_S, num_labels=num_labels,args=args)
-    #Load teacher
+    #加载teacher模型参数
     if args.tuned_checkpoint_T is not None:
         state_dict_T = torch.load(args.tuned_checkpoint_T, map_location='cpu')
         model_T.load_state_dict(state_dict_T)
@@ -175,7 +175,7 @@ def main():
         model_S.load_state_dict(state_dict_S)
         logger.info("Model loaded")
     else:
-        logger.info("Model is randomly initialized.")
+        logger.info("Student模型没有可加载参数，随机初始化参数 randomly initialized.")
     model_T.to(device)
     model_S.to(device)
 
@@ -191,7 +191,7 @@ def main():
         params = list(model_S.named_parameters())
         all_trainable_params = divide_parameters(params, lr=args.learning_rate)
         logger.info("Length of all_trainable_params: %d", len(all_trainable_params))
-
+        #优化器配置
         optimizer = BERTAdam(all_trainable_params,lr=args.learning_rate,
                              warmup=args.warmup_proportion,t_total=num_train_steps,schedule=args.schedule,
                              s_opt1=args.s_opt1, s_opt2=args.s_opt2, s_opt3=args.s_opt3)
@@ -208,23 +208,23 @@ def main():
             log_dir = args.output_dir,
             output_dir = args.output_dir,
             device = args.device)
-
+        # 定义了一些固定的matches配置文件
         from matches import matches
         intermediate_matches = None
         if isinstance(args.matches,(list,tuple)):
             intermediate_matches = []
             for match in args.matches:
                 intermediate_matches += matches[match]
-        logger.info(f"{intermediate_matches}")
+        logger.info(f"中间层match信息： {intermediate_matches}")
         distill_config = DistillationConfig(
             temperature = args.temperature,
             intermediate_matches=intermediate_matches)
 
-        logger.info(f"{train_config}")
-        logger.info(f"{distill_config}")
+        logger.info(f"训练配置： {train_config}")
+        logger.info(f"蒸馏配置： {distill_config}")
         adaptor_T = partial(BertForGLUESimpleAdaptor, no_logits=args.no_logits, no_mask = args.no_inputs_mask)
         adaptor_S = partial(BertForGLUESimpleAdaptor, no_logits=args.no_logits, no_mask = args.no_inputs_mask)
-
+        # 支持中间状态匹配的通用蒸馏模型
         distiller = GeneralDistiller(train_config = train_config,
                                    distill_config = distill_config,
                                    model_T = model_T, model_S = model_S,

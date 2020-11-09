@@ -146,7 +146,7 @@ def main():
     logger.info("数据集已加载")
 
 
-    #加载模型并初始化
+    #加载模型并初始化, 只用student模型，其实这里相当于在MNLI数据上训练教师模型，只训练一个模型
     model_S = BertForGLUESimple(bert_config_S, num_labels=num_labels,args=args)
     #初始化student模型
     if args.load_model_type=='bert':

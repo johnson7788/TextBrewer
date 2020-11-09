@@ -2,7 +2,7 @@
 BERT_DIR=bert_model
 OUTPUT_ROOT_DIR=output_root_dir
 DATA_ROOT_DIR=data_root_dir
-trained_teacher_model=trained_teacher_model_file
+trained_teacher_model=trained_teacher_model/gs1249.pkl
 
 STUDENT_CONF_DIR=../student_config/bert_base_cased_config
 
@@ -28,10 +28,11 @@ mkdir -p $OUTPUT_DIR
 python -u main.distill.py \
     --vocab_file $BERT_DIR/vocab.txt \
     --data_dir  $DATA_DIR \
-    --bert_config_file_T $BERT_DIR/bert_config.json \
+    --bert_config_file_T $BERT_DIR/config.json \
     --bert_config_file_S $STUDENT_CONF_DIR/bert_config_L4t.json \
     --tuned_checkpoint_T $trained_teacher_model \
     --load_model_type none \
+    --do_lower_case \
     --do_train \
     --do_eval \
     --do_predict \

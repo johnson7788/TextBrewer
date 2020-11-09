@@ -32,6 +32,15 @@ def read_and_convert(fn,is_training,read_fn,convert_fn):
     return examples,features
 
 def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False):
+    """
+
+    :param args:
+    :param task:  eg : mnli
+    :param tokenizer:  加载好的tokenizer
+    :param evaluate: bool，是否是评估数据集还是训练集 True: 代表加载dev.tsv,
+    :param is_aux: bool
+    :return:
+    """
     if is_aux:
         data_dir = args.aux_data_dir
     else:
