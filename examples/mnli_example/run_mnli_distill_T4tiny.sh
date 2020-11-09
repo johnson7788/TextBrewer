@@ -1,8 +1,8 @@
 #set hyperparameters
-BERT_DIR=/path/to/bert-base-cased
-OUTPUT_ROOT_DIR=/path/to/output_root_dir
-DATA_ROOT_DIR=/path/to/data_root_dir
-trained_teacher_model=/path/to/trained_teacher_model_file
+BERT_DIR=bert_model
+OUTPUT_ROOT_DIR=output_root_dir
+DATA_ROOT_DIR=data_root_dir
+trained_teacher_model=trained_teacher_model_file
 
 STUDENT_CONF_DIR=../student_config/bert_base_cased_config
 
