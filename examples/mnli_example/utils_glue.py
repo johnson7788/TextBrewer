@@ -149,37 +149,16 @@ class MnliProcessor(DataProcessor):
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
-class MnliProcessor(DataProcessor):
-    """Processor for the MultiNLI data set (GLUE version)."""
 
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+class MnliMismatchedProcessor(MnliProcessor):
+    """Processor for the MultiNLI Mismatched data set (GLUE version)."""
 
     def get_dev_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "dev_matched.tsv")),
+            self._read_tsv(os.path.join(data_dir, "dev_mismatched.tsv")),
             "dev_matched")
 
-    def get_labels(self):
-        """MNLI的labels"""
-        return ["contradiction", "entailment", "neutral"]
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-            if i == 0:
-                continue
-            guid = "%s-%s" % (set_type, line[0])
-            text_a = line[8]
-            text_b = line[9]
-            label = line[-1]
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
 
 class CosmeticsProcessor(MnliProcessor):
     """处理Cosmetics数据"""
@@ -208,13 +187,13 @@ class CosmeticsProcessor(MnliProcessor):
         examples = []
         labels = self.get_labels()
         for i in range(0, len(lines), 3):
-            text_left, _, text_right = [s.lower().strip() for s in lines[i].partition("$T$")]
-            aspect = lines[i + 1].lower().strip()
+            text_left, _, text_right = [s.lower().strip() for s in lines[i][0].partition("$T$")]
+            aspect = lines[i + 1][0].lower().strip()
             guid = "%s-%s" % (set_type, i)
-            text_a = text_left + " " + aspect + " " + text_right
+            text_a = text_left + aspect + text_right
             text_b = aspect
             # label从 【-1，0，1】 --> [0,1,2]
-            label_id = lines[i+2] + 1
+            label_id = int(lines[i+2][0])+ 1
             # label_id --> NEG, NEU, POS
             label = labels[label_id]
             examples.append(

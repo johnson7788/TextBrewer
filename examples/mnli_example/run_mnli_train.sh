@@ -15,9 +15,9 @@ length=128
 sopt1=30 # The final learning rate is 1/sopt1 of the initial learning rate
 torch_seed=9580
 
-taskname='mnli'
+taskname='cosmetics'
 NAME=${taskname}_base_lr${lr}e${ep}_bs${batch_size}_teacher
-DATA_DIR=${DATA_ROOT_DIR}/MNLI
+DATA_DIR=${DATA_ROOT_DIR}/cosmetics
 OUTPUT_DIR=${OUTPUT_ROOT_DIR}/${NAME}
 
 

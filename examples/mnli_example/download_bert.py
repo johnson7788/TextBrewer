@@ -1,7 +1,8 @@
 from transformers import AutoTokenizer, AutoModelForMaskedLM
-
-tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
-
-model = AutoModelForMaskedLM.from_pretrained("bert-base-cased")
+import os
+tokenizer = AutoTokenizer.from_pretrained("bert-base-chinese")
+model = AutoModelForMaskedLM.from_pretrained("bert-base-chinese")
 model.save_pretrained('bert_model')
 tokenizer.save_pretrained('bert_model')
+os.remove("bert_model/special_tokens_map.json")
+os.remove("bert_model/tokenizer_config.json")
