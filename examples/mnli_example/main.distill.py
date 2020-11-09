@@ -1,4 +1,5 @@
 import logging
+import time
 logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(name)s -  %(message)s',
     datefmt='%Y/%m/%d %H:%M:%S',
@@ -61,6 +62,8 @@ def predict(model,eval_datasets,step,args):
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.predict_batch_size)
         model.eval()
 
+        #起始时间
+        start_time = time.time()
         pred_logits = []
         label_ids = []
         for batch in tqdm(eval_dataloader, desc="Evaluating", disable=None):
@@ -87,6 +90,8 @@ def predict(model,eval_datasets,step,args):
         logger.info(f"result: {result}")
         results.update(result)
 
+    cost_time = time.time() - start_time
+    logger.info(f"--- 评估{len(eval_dataset)}条数据的总耗时是 {cost_time} seconds, 每条耗时 {cost_time/len(eval_dataset)} seconds ---")
     output_eval_file = os.path.join(eval_output_dir, "eval_results-%s.txt" % eval_task)
     with open(output_eval_file, "a") as writer:
         logger.info("***** Eval results {} task {} *****".format(step, eval_task))
