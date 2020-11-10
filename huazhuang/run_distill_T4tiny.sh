@@ -12,19 +12,17 @@ ep=40
 lr=10
 temperature=8
 batch_size=8
-length=128
+length=70
 sopt1=30
 torch_seed=9580
 
-taskname='mnli'
+taskname='cosmetics'
 NAME=${taskname}_t${temperature}_TbaseST4tiny_AllSmmdH1_lr${lr}e${ep}_bs${batch_size}
-DATA_DIR=${DATA_ROOT_DIR}/MNLI
+DATA_DIR=${DATA_ROOT_DIR}/cosmetics
 OUTPUT_DIR=${OUTPUT_ROOT_DIR}/${NAME}
 
 
-
 mkdir -p $OUTPUT_DIR
-
 
 python -u main.distill.py \
     --vocab_file $BERT_DIR/vocab.txt \

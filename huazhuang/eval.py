@@ -26,12 +26,12 @@ from functools import partial
 
 def args_check(args):
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
-        logger.warning("Output directory () already exists and is not empty.")
+        logger.warning("输出目录已经存在，且不为空")
     if args.gradient_accumulation_steps < 1:
-        raise ValueError("Invalid gradient_accumulation_steps parameter: {}, should be >= 1".format(
+        raise ValueError("无效的gradient_accumulation_steps参数：{}应>= 1".format(
                             args.gradient_accumulation_steps))
     if not args.do_train and not args.do_predict:
-        raise ValueError("At least one of `do_train` or `do_predict` must be True.")
+        raise ValueError("do_train或do_predict中的至少一个必须为True")
 
     if args.local_rank == -1:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,13 +40,13 @@ def args_check(args):
         device = torch.device("cuda", args.local_rank)
         n_gpu = 1
         torch.distributed.init_process_group(backend='nccl')
-    logger.info("device %s n_gpu %d distributed training %r", device, n_gpu, bool(args.local_rank != -1))
+    logger.info("使用设备 %s 使用的gpu数 %d； 是否分布式 %r", device, n_gpu, bool(args.local_rank != -1))
     args.n_gpu = n_gpu
     args.device = device
     return device, n_gpu
 
 def predict(model,eval_datasets,step,args):
-    eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
+    eval_task_names = args.task_name
     eval_output_dir = args.output_dir
     results = {}
     for eval_task,eval_dataset in zip(eval_task_names, eval_datasets):
@@ -103,44 +103,38 @@ def main():
     args = config.args
     for k,v in vars(args).items():
         logger.info(f"{k}:{v}")
-    #set seeds
+    #设置随机数种子
     torch.manual_seed(args.random_seed)
     torch.cuda.manual_seed_all(args.random_seed)
     np.random.seed(args.random_seed)
     random.seed(args.random_seed)
 
-    #arguments check
+    #解析参数, 判断使用的设备
     device, n_gpu = args_check(args)
     os.makedirs(args.output_dir, exist_ok=True)
     forward_batch_size = int(args.train_batch_size / args.gradient_accumulation_steps)
     args.forward_batch_size = forward_batch_size
 
-    #load bert config
+    #加载student的配置文件
     bert_config_S = BertConfig.from_json_file(args.bert_config_file_S)
     assert args.max_seq_length <= bert_config_S.max_position_embeddings
 
-    #Prepare GLUE task
+    #准备task
     processor = processors[args.task_name]()
+    # 是分类还是回归
     args.output_mode = output_modes[args.task_name]
-    # eg： MNLI，['contradiction', 'entailment', 'neutral'] --> [“矛盾”，“必然”，“中立”]
+    #所有的labels
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
-    #read data
-    train_dataset = None
+    #读取数据
     eval_datasets  = None
     num_train_steps = None
     tokenizer = BertTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
-    # 加载数据集, 计算steps
-    if args.do_train:
-        train_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
-        if args.aux_task_name:
-            aux_train_dataset = load_and_cache_examples(args, args.aux_task_name, tokenizer, evaluate=False, is_aux=True)
-            train_dataset = torch.utils.data.ConcatDataset([train_dataset, aux_train_dataset])
-        num_train_steps = int(len(train_dataset)/args.train_batch_size) * args.num_train_epochs
+
     if args.do_predict:
         eval_datasets = []
-        eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
+        eval_task_names = args.task_name
         for eval_task in eval_task_names:
             eval_datasets.append(load_and_cache_examples(args, eval_task, tokenizer, evaluate=True))
     logger.info("数据集已加载")
@@ -175,44 +169,6 @@ def main():
             raise NotImplementedError
         elif n_gpu > 1:
             model_S = torch.nn.DataParallel(model_S) #,output_device=n_gpu-1)
-
-    if args.do_train:
-        #parameters
-        params = list(model_S.named_parameters())
-        all_trainable_params = divide_parameters(params, lr=args.learning_rate)
-        logger.info("Length of all_trainable_params: %d", len(all_trainable_params))
-        # 优化器设置
-        optimizer = BERTAdam(all_trainable_params,lr=args.learning_rate,
-                             warmup=args.warmup_proportion,t_total=num_train_steps,schedule=args.schedule,
-                             s_opt1=args.s_opt1, s_opt2=args.s_opt2, s_opt3=args.s_opt3)
-
-        logger.info("***** Running training *****")
-        logger.info("  Num examples = %d", len(train_dataset))
-        logger.info("  Forward batch size = %d", forward_batch_size)
-        logger.info("  Num backward steps = %d", num_train_steps)
-
-        ########### 蒸馏 ###########
-        train_config = TrainingConfig(
-            gradient_accumulation_steps = args.gradient_accumulation_steps,
-            ckpt_frequency = args.ckpt_frequency,
-            log_dir = args.output_dir,
-            output_dir = args.output_dir,
-            device = args.device)
-
-        #执行监督训练，而不是蒸馏。它可以用于训练teacher模型。初始化模型
-        distiller = BasicTrainer(train_config = train_config,
-                                 model = model_S,
-                                 adaptor = BertForGLUESimpleAdaptorTraining)
-
-        if args.local_rank == -1:
-            train_sampler = RandomSampler(train_dataset)
-        else:
-            raise NotImplementedError
-        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.forward_batch_size,drop_last=True)
-        callback_func = partial(predict, eval_datasets=eval_datasets, args=args)
-        with distiller:
-            distiller.train(optimizer, scheduler=None, dataloader=train_dataloader,
-                              num_epochs=args.num_train_epochs, callback=callback_func)
 
     if not args.do_train and args.do_predict:
         res = predict(model_S,eval_datasets,step=0,args=args)

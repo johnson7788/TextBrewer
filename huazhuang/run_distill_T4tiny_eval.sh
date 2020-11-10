@@ -1,25 +1,23 @@
-export PYTHONPATH="${PYTHONPATH}:/home/wac/johnson/johnson/TextBrewer/examples/mnli_example:/home/wac/johnson/johnson/TextBrewer/src"
+export PYTHONPATH="${PYTHONPATH}:../src"
 
 #set hyperparameters
 BERT_DIR=bert_model
 OUTPUT_ROOT_DIR=output_root_dir
 DATA_ROOT_DIR=data_root_dir
-FINAL_MODEL=finnal_model/gs3747.pkl
+FINAL_MODEL=distil_model/gs8316.pkl
 
-STUDENT_CONF_DIR=config/chinese_bert_config_L4t.json
+STUDENT_CONF=config/chinese_bert_config_L4t.json
 
-accu=1
-ep=40
 lr=10
 temperature=8
 batch_size=8
-length=128
+length=70
 sopt1=30
 torch_seed=9580
 
-taskname='mnli'
+taskname='cosmetics'
 NAME=${taskname}_t${temperature}_TbaseST4tiny_AllSmmdH1_lr${lr}e${ep}_bs${batch_size}
-DATA_DIR=${DATA_ROOT_DIR}/MNLI
+DATA_DIR=${DATA_ROOT_DIR}/cosmetics
 OUTPUT_DIR=${OUTPUT_ROOT_DIR}/${NAME}
 
 
@@ -31,25 +29,18 @@ python -u main.distill.py \
     --vocab_file $BERT_DIR/vocab.txt \
     --data_dir  $DATA_DIR \
     --bert_config_file_T $BERT_DIR/config.json \
-    --bert_config_file_S $STUDENT_CONF_DIR/bert_config_L4t.json \
+    --bert_config_file_S $STUDENT_CONF \
     --load_model_type all \
     --tuned_checkpoint_S $FINAL_MODEL \
     --do_predict \
     --max_seq_length ${length} \
     --train_batch_size ${batch_size} \
     --random_seed $torch_seed \
-    --num_train_epochs ${ep} \
     --learning_rate ${lr}e-5 \
     --ckpt_frequency 1 \
     --schedule slanted_triangular \
     --s_opt1 ${sopt1} \
     --output_dir $OUTPUT_DIR \
-    --gradient_accumulation_steps ${accu} \
     --temperature ${temperature} \
     --task_name ${taskname} \
-    --output_att_sum false  \
-    --output_encoded_layers true \
-    --output_attention_layers false \
-    --matches L4t_hidden_mse \
-              L4_hidden_smmd \
     #--init_checkpoint_S  $BERT_DIR_BASE/pytorch_model_hf.bin \
