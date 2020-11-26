@@ -18,3 +18,4 @@ examples/mnli_example/trained_teacher_model/
 huazhuang/data_root_dir/cosmetics/
 huazhuang/output_root_dir/
 huazhuang/bert_model/
+huazhuang/utils/bert_model_uncased/

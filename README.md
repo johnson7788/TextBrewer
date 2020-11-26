@@ -1,5 +1,3 @@
- [**English**](README.md) | [**中文说明**](README_ZH.md)
-
 <p align="center">
     <br>
     <img src="./pics/banner.png" width="500"/>
