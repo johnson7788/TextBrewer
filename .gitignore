@@ -19,3 +19,7 @@ huazhuang/data_root_dir/cosmetics/
 huazhuang/output_root_dir/
 huazhuang/bert_model/
 huazhuang/utils/bert_model_uncased/
+xuanchuan/data_root_dir/cosmetics/
+xuanchuan/output_root_dir/
+xuanchuan/bert_model/
+xuanchuan/utils/bert_model_uncased/
