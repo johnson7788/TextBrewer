@@ -233,20 +233,38 @@ class CaiyeProcessor(MnliProcessor):
         """Creates examples for the training and dev sets."""
         examples = []
         labels = self.get_labels()
+        import hanlp
+        tokenizer = hanlp.load('LARGE_ALBERT_BASE')
         for i, line in enumerate(lines):
             line_split = line.split('###')
             if len(line_split) != 3:
                 continue
             content, keyword, labelid = line_split
-            guid = "%s-%s" % (set_type, i)
             text_a = content
-            text_b = keyword
-            # label从 【-1，0，1】 --> [0,1,2]
+            # 通过hanlp拆分句子，获取每个词，每个词作为句子b
+            keywords = tokenizer(text_a)
+            for kidx, newkey in enumerate(keywords):
+                guid = "%s-%s-%s" % (set_type, i, kidx)
+                text_b = newkey
+                #如果hanlp拆分的keyword的，这个keyword和我们样本标记的不一样，那么作为负样本，设置为2，即为other类别
+                if keyword not in newkey:
+                    newlabel = 2
+                else:
+                    newlabel = labelid
+                # label从 【-1，0，1】 --> [0,1,2]
+                label_id = int(newlabel)
+                # label_id --> NEG, NEU, POS
+                label = labels[label_id]
+                examples.append(
+                    InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+
+            #把原本的keyword也加入
+            guid = "%s-%s-%s" % (set_type, i, kidx+1)
             label_id = int(labelid)
             # label_id --> NEG, NEU, POS
             label = labels[label_id]
             examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+                InputExample(guid=guid, text_a=text_a, text_b=keyword, label=label))
         return examples
 
 class ColaProcessor(DataProcessor):
