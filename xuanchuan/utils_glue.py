@@ -237,6 +237,8 @@ class CaiyeProcessor(MnliProcessor):
         tokenizer = hanlp.load('LARGE_ALBERT_BASE')
         for i, line in enumerate(lines):
             line_split = line.split('###')
+            if i %10 == 0 :
+                print(f"完成了{i}条处理")
             if len(line_split) != 3:
                 continue
             content, keyword, labelid = line_split
