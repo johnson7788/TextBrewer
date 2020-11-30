@@ -54,6 +54,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False)
     if os.path.exists(cached_features_file):
         logger.info("从缓存加载features %s", cached_features_file)
         features = torch.load(cached_features_file)
+        examples = torch.load(cached_features_file + ".examples")
     else:
         logger.info("没有发现缓存features，根据datafile生成features %s", data_dir)
         label_list = processor.get_labels()
@@ -63,6 +64,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False)
         if args.local_rank in [-1, 0]:
             logger.info("Saving features into cached file %s", cached_features_file)
             torch.save(features, cached_features_file)
+            torch.save(examples, cached_features_file+".examples")
     # Convert to Tensors and build dataset
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)

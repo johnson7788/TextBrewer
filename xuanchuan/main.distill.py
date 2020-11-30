@@ -46,7 +46,7 @@ def args_check(args):
     args.device = device
     return device, n_gpu
 
-def predict(model,eval_datasets,step,args, examples=None):
+def predict(model,eval_datasets,step,args, examples=None, label_list=None):
     """
 
     :param model:
@@ -88,13 +88,24 @@ def predict(model,eval_datasets,step,args, examples=None):
                 label_ids.append(labels[i])
 
         pred_logits = np.array(pred_logits)
+        # 所有真实的labels id
         label_ids = np.array(label_ids)
-
         if args.output_mode == "classification":
+            # 所有预测的label id
             preds = np.argmax(pred_logits, axis=1)
         else: # args.output_mode == "regression":
             preds = np.squeeze(pred_logits)
         result = compute_metrics(eval_task, preds, label_ids)
+        #随机取100个样本，查看结果
+        if examples and label_list:
+            #抽取100个
+            num_example = 100
+            print(f"随机打印{num_example}个预测结果")
+            total_examples = len(label_ids)
+            display_examples = random.sample(range(total_examples),num_example)
+            print("样本          关键字          真实标签         预测标签")
+            for exp_idx in display_examples:
+                print('%30s  %10s  %8s  %8s' % (examples[exp_idx].text_a, examples[exp_idx].text_b, examples[exp_idx].label,label_list[preds[exp_idx]]))
         logger.info(f"task:,{eval_task}")
         logger.info(f"result: {result}")
         results.update(result)
@@ -257,7 +268,7 @@ def main():
                               num_epochs=args.num_train_epochs, callback=callback_func)
 
     if not args.do_train and args.do_predict:
-        res = predict(model_S,eval_datasets,step=0,args=args, examples=examples)
+        res = predict(model_S,eval_datasets,step=0,args=args, examples=examples, label_list=label_list)
         print (res)
 
 if __name__ == "__main__":
