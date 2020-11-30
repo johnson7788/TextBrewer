@@ -1,9 +1,13 @@
 # 数据准备
 使用utils下的cosmetics_data_utils.py准备数据, 数据有一个简单示例
 
+#下载预训练模型
+utils/download_bert.py
+
 # 步骤1
 * run_train.sh : 训练教师模型(bert-base-cased)
-python main.trainer.py --vocab_file bert_model/vocab.txt --data_dir data_root_dir/caiye --bert_config_file_T none --bert_config_file_S bert_model/config.json --init_checkpoint_S bert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 20 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/caiye --gradient_accumulation_steps 1 --task_name caiye --output_att_sum false --output_encoded_layers false --output_attention_layers false
+python main.trainer.py --vocab_file bert_model/vocab.txt --data_dir data_root_dir/caiye --bert_config_file_T none --bert_config_file_S bert_model/config.json --init_checkpoint_S bert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 30 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/caiye --gradient_accumulation_steps 1 --task_name caiye --output_att_sum false --output_encoded_layers false --output_attention_layers false
+ 
 模型保存为gs{global_step}.pkl 格式
 
 # 步骤2
