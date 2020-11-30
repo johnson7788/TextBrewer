@@ -46,7 +46,16 @@ def args_check(args):
     args.device = device
     return device, n_gpu
 
-def predict(model,eval_datasets,step,args):
+def predict(model,eval_datasets,step,args, examples=None):
+    """
+
+    :param model:
+    :param eval_datasets:
+    :param step:
+    :param args:
+    :param examples:  样本集合，可以打印前N条样本的预测结果
+    :return:
+    """
     eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
     eval_output_dir = args.output_dir
     results = {}
@@ -79,7 +88,7 @@ def predict(model,eval_datasets,step,args):
                 label_ids.append(labels[i])
 
         pred_logits = np.array(pred_logits)
-        label_ids   = np.array(label_ids)
+        label_ids = np.array(label_ids)
 
         if args.output_mode == "classification":
             preds = np.argmax(pred_logits, axis=1)
@@ -139,16 +148,17 @@ def main():
     tokenizer = BertTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
     # 加载数据集
     if args.do_train:
-        train_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
+        train_dataset,examples = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
         if args.aux_task_name:
-            aux_train_dataset = load_and_cache_examples(args, args.aux_task_name, tokenizer, evaluate=False, is_aux=True)
+            aux_train_dataset,examples = load_and_cache_examples(args, args.aux_task_name, tokenizer, evaluate=False, is_aux=True)
             train_dataset = torch.utils.data.ConcatDataset([train_dataset, aux_train_dataset])
         num_train_steps = int(len(train_dataset)/args.train_batch_size) * args.num_train_epochs
     if args.do_predict:
         eval_datasets = []
         eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
         for eval_task in eval_task_names:
-            eval_datasets.append(load_and_cache_examples(args, eval_task, tokenizer, evaluate=True))
+            eval_dataset, examples = load_and_cache_examples(args, eval_task, tokenizer, evaluate=True)
+            eval_datasets.append(eval_dataset)
     logger.info("数据集加载成功")
 
     #加载模型，加载teacher和student模型
@@ -241,13 +251,13 @@ def main():
         else:
             raise NotImplementedError
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.forward_batch_size,drop_last=True)
-        callback_func = partial(predict, eval_datasets=eval_datasets, args=args)
+        callback_func = partial(predict, eval_datasets=eval_datasets, args=args, examples=examples)
         with distiller:
             distiller.train(optimizer, scheduler=None, dataloader=train_dataloader,
                               num_epochs=args.num_train_epochs, callback=callback_func)
 
     if not args.do_train and args.do_predict:
-        res = predict(model_S,eval_datasets,step=0,args=args)
+        res = predict(model_S,eval_datasets,step=0,args=args, examples=examples)
         print (res)
 
 if __name__ == "__main__":

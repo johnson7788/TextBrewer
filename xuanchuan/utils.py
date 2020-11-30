@@ -72,7 +72,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False)
     elif output_mode == "regression":
         all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
     dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-    return dataset
+    return dataset, examples
 
 
 def divide_parameters(named_parameters,lr=None):

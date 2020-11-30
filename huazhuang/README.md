@@ -11,8 +11,8 @@ python main.trainer.py --vocab_file bert_model/vocab.txt --data_dir data_root_di
 python main.distill.py --vocab_file bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type none --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 40 --learning_rate 10e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/t8_TbaseST4tiny_AllSmmdH1_lr10e40_bs24 --gradient_accumulation_steps 1 --temperature 8 --task_name cosmetics --output_att_sum false --output_encoded_layers true --output_attention_layers false --matches L4t_hidden_mse L4_hidden_smmd
 
 # 步骤3
-* run_distill_T4tiny_eval.sh
-评估模型  python main.distill.py  --vocab_file bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/t8_TbaseST4tiny_eval  --temperature 8 --task_name cosmetics
+* run_distill_T4tiny_eval.sh 评估模型  
+python main.distill.py  --vocab_file bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/t8_TbaseST4tiny_eval  --temperature 8 --task_name cosmetics
 
 # 运行参数介绍
 ```

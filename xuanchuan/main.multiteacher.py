@@ -133,16 +133,17 @@ def main():
     num_train_steps = None
     tokenizer = BertTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
     if args.do_train:
-        train_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
+        train_dataset,examples = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
         if args.aux_task_name:
-            aux_train_dataset = load_and_cache_examples(args, args.aux_task_name, tokenizer, evaluate=False, is_aux=True)
+            aux_train_dataset,examples = load_and_cache_examples(args, args.aux_task_name, tokenizer, evaluate=False, is_aux=True)
             train_dataset = torch.utils.data.ConcatDataset([train_dataset, aux_train_dataset])
         num_train_steps = int(len(train_dataset)/args.train_batch_size) * args.num_train_epochs
     if args.do_predict:
         eval_datasets = []
         eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
         for eval_task in eval_task_names:
-            eval_datasets.append(load_and_cache_examples(args, eval_task, tokenizer, evaluate=True))
+            eval_dataset,examples = load_and_cache_examples(args, eval_task, tokenizer, evaluate=True)
+            eval_datasets.append(eval_dataset)
     logger.info("Data loaded")
 
 

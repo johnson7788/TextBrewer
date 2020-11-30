@@ -124,7 +124,7 @@ def main():
     # 读取数据
     tokenizer = BertTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
 
-    eval_dataset = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=True)
+    eval_dataset, examples = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=True)
     logger.info("评估数据集已加载")
 
     model_S = BertSPCSimple(bert_config_S, num_labels=num_labels, args=args)
