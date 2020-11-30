@@ -200,6 +200,45 @@ class CosmeticsProcessor(MnliProcessor):
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
+class CaiyeProcessor(MnliProcessor):
+    """处理Cosmetics数据"""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "train.txt")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.txt")),
+            "dev")
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "test.txt")),
+            "test")
+    def get_labels(self):
+        """cosmetics的labels"""
+        return ["NEG", "NEU", "POS"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        examples = []
+        labels = self.get_labels()
+        for i in range(0, len(lines), 3):
+            text_left, _, text_right = [s.lower().strip() for s in lines[i][0].partition("$T$")]
+            aspect = lines[i + 1][0].lower().strip()
+            guid = "%s-%s" % (set_type, i)
+            text_a = text_left + aspect + text_right
+            text_b = aspect
+            # label从 【-1，0，1】 --> [0,1,2]
+            label_id = int(lines[i+2][0])+ 1
+            # label_id --> NEG, NEU, POS
+            label = labels[label_id]
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
 
 class ColaProcessor(DataProcessor):
     """Processor for the CoLA data set (GLUE version)."""
@@ -604,6 +643,8 @@ def compute_metrics(task_name, preds, labels):
         return {"acc": simple_accuracy(preds, labels)}
     elif task_name == "cosmetics":
         return {"acc": simple_accuracy(preds, labels)}
+    elif task_name == "caiye":
+        return {"acc": simple_accuracy(preds, labels)}
     elif task_name == "mnli-mm":
         return {"mm-acc": simple_accuracy(preds, labels)}
     elif task_name == "qnli":
@@ -619,6 +660,7 @@ processors = {
     "cola": ColaProcessor,
     "mnli": MnliProcessor,
     "cosmetics": CosmeticsProcessor,
+    "caiye": CaiyeProcessor,
     "mnli-mm": MnliMismatchedProcessor,
     "mrpc": MrpcProcessor,
     "sst-2": Sst2Processor,
@@ -633,6 +675,7 @@ output_modes = {
     "cola": "classification",
     "mnli": "classification",
     "cosmetics": "classification",
+    "caiye": "classification",
     "mnli-mm": "classification",
     "mrpc": "classification",
     "sst-2": "classification",
@@ -647,6 +690,7 @@ GLUE_TASKS_NUM_LABELS = {
     "cola": 2,
     "mnli": 3,
     "cosmetics": 3,
+    "caiye": 3,
     "mrpc": 2,
     "sst-2": 2,
     "sts-b": 1,

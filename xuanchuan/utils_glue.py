@@ -82,6 +82,13 @@ class DataProcessor(object):
             for line in reader:
                 lines.append(line)
             return lines
+    @classmethod
+    def _read_txt(cls, input_file, quotechar=None):
+        with open(input_file, "r", encoding="utf-8") as f:
+            lines = []
+            for line in f:
+                lines.append(line.strip())
+            return lines
 
 
 class MrpcProcessor(DataProcessor):
@@ -180,7 +187,7 @@ class CosmeticsProcessor(MnliProcessor):
             "test")
     def get_labels(self):
         """cosmetics的labels"""
-        return ["NEG", "NEU", "POS"]
+        return ["components", "effect", "other"]
 
     def _create_examples(self, lines, set_type):
         """Creates examples for the training and dev sets."""
@@ -200,6 +207,47 @@ class CosmeticsProcessor(MnliProcessor):
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
+class CaiyeProcessor(MnliProcessor):
+    """处理Cosmetics数据"""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_txt(os.path.join(data_dir, "train.txt")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_txt(os.path.join(data_dir, "dev.txt")),
+            "dev")
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_txt(os.path.join(data_dir, "test.txt")),
+            "test")
+    def get_labels(self):
+        """cosmetics的labels"""
+        return ["components", "effect", "other"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        examples = []
+        labels = self.get_labels()
+        for i, line in enumerate(lines):
+            line_split = line.split('###')
+            if len(line_split) != 3:
+                continue
+            content, keyword, labelid = line_split
+            guid = "%s-%s" % (set_type, i)
+            text_a = content
+            text_b = keyword
+            # label从 【-1，0，1】 --> [0,1,2]
+            label_id = int(labelid)
+            # label_id --> NEG, NEU, POS
+            label = labels[label_id]
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
 
 class ColaProcessor(DataProcessor):
     """Processor for the CoLA data set (GLUE version)."""
@@ -454,9 +502,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     :return:
     """
     # label映射为id
-    label_map = {label : i for i, label in enumerate(label_list)}
+    label_map = {label: i for i, label in enumerate(label_list)}
 
     features = []
+    # 记录超过最大长度的样本格式
+    extra_long_samples = 0
     for (ex_index, example) in enumerate(examples):
         # 每10000条，记录下日志
         if ex_index % 10000 == 0:
@@ -468,14 +518,18 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         # 如果句子b存在，对句子btokenizer
         if example.text_b:
             tokens_b = tokenizer.tokenize(example.text_b)
+            if (len(tokens_a) + len(tokens_b)) > (max_seq_length -3):
+                extra_long_samples += 1
             # in_place修改`tokens_a`和`tokens_b`以便总长度小于指定长度
             # 因为 [CLS], [SEP], [SEP] 的存在，所以总长度需要减去3 "- 3"
             _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
+
         else:
             # 如果不存在句子b，那么总长度减去2即可。 Account for [CLS] and [SEP] with "- 2"
             if len(tokens_a) > max_seq_length - 2:
+                if len(tokens_a)> max_seq_length - 2:
+                    extra_long_samples += 1
                 tokens_a = tokens_a[:(max_seq_length - 2)]
-
         # Bert的惯例是:
         # (a) For sequence pairs:
         #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
@@ -544,6 +598,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
                               input_mask=input_mask,
                               segment_ids=segment_ids,
                               label_id=label_id))
+    logger.info("超过最大序列长度的样本个数有%d，总样本数有%d", extra_long_samples, len(examples))
     return features
 
 
@@ -604,6 +659,8 @@ def compute_metrics(task_name, preds, labels):
         return {"acc": simple_accuracy(preds, labels)}
     elif task_name == "cosmetics":
         return {"acc": simple_accuracy(preds, labels)}
+    elif task_name == "caiye":
+        return {"acc": simple_accuracy(preds, labels)}
     elif task_name == "mnli-mm":
         return {"mm-acc": simple_accuracy(preds, labels)}
     elif task_name == "qnli":
@@ -619,6 +676,7 @@ processors = {
     "cola": ColaProcessor,
     "mnli": MnliProcessor,
     "cosmetics": CosmeticsProcessor,
+    "caiye": CaiyeProcessor,
     "mnli-mm": MnliMismatchedProcessor,
     "mrpc": MrpcProcessor,
     "sst-2": Sst2Processor,
@@ -633,6 +691,7 @@ output_modes = {
     "cola": "classification",
     "mnli": "classification",
     "cosmetics": "classification",
+    "caiye": "classification",
     "mnli-mm": "classification",
     "mrpc": "classification",
     "sst-2": "classification",
@@ -647,6 +706,7 @@ GLUE_TASKS_NUM_LABELS = {
     "cola": 2,
     "mnli": 3,
     "cosmetics": 3,
+    "caiye": 3,
     "mrpc": 2,
     "sst-2": 2,
     "sts-b": 1,

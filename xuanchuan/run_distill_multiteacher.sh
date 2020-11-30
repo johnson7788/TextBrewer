@@ -18,9 +18,9 @@ length=128
 sopt1=30
 torch_seed=9580
 
-taskname='cosmetics'
+taskname='caiye'
 NAME=${taskname}_t${temperature}_MTbaseST4tiny_lr${lr}e${ep}_bs${batch_size}
-DATA_DIR=${DATA_ROOT_DIR}/cosmetics
+DATA_DIR=${DATA_ROOT_DIR}/caiye
 OUTPUT_DIR=${OUTPUT_ROOT_DIR}/${NAME}
 
 
