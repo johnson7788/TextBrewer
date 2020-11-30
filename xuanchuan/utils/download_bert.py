@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import os
+# 下载中文bert
 tokenizer = AutoTokenizer.from_pretrained("bert-base-chinese")
 model = AutoModelForMaskedLM.from_pretrained("bert-base-chinese")
 model.save_pretrained('../bert_model')
