@@ -62,10 +62,10 @@ def predict(model,eval_datasets,step,args, examples=None, label_list=None):
     for eval_task,eval_dataset in zip(eval_task_names, eval_datasets):
         if not os.path.exists(eval_output_dir) and args.local_rank in [-1, 0]:
             os.makedirs(eval_output_dir)
-        logger.info("Predicting...")
+        logger.info("开始预测...")
         logger.info("***** Running predictions *****")
-        logger.info(" task name = %s", eval_task)
-        logger.info("  Num  examples = %d", len(eval_dataset))
+        logger.info(" 任务名称 = %s", eval_task)
+        logger.info("  样本数 = %d", len(eval_dataset))
         logger.info("  Batch size = %d", args.predict_batch_size)
         eval_sampler = SequentialSampler(eval_dataset) if args.local_rank == -1 else DistributedSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.predict_batch_size)
@@ -106,6 +106,20 @@ def predict(model,eval_datasets,step,args, examples=None, label_list=None):
             print("样本          关键字          真实标签         预测标签")
             for exp_idx in display_examples:
                 print('%30s  %10s  %8s  %8s' % (examples[exp_idx].text_a, examples[exp_idx].text_b, examples[exp_idx].label,label_list[preds[exp_idx]]))
+        if examples and label_list:
+            # 保存所有结果到excel
+            data_dict = []
+            for idx in range(total_examples):
+                data_dict.append({
+                    '样本': examples[idx].text_a,
+                    '关键字':examples[idx].text_b,
+                    '真实标签': examples[idx].label,
+                    '预测标签': label_list[preds[idx]]
+                })
+            import pandas as pd
+            df = pd.DataFrame(data_dict)
+            writer = pd.ExcelWriter("eval_result.xlsx")
+            df.to_excel(writer)
         logger.info(f"task:,{eval_task}")
         logger.info(f"result: {result}")
         results.update(result)
