@@ -34,6 +34,7 @@ def args_check(args):
         raise ValueError("At least one of `do_train` or `do_predict` must be True.")
 
     if args.local_rank == -1:
+        # 本地运行，不用多GPU架构
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         n_gpu = torch.cuda.device_count() if torch.cuda.is_available() else 0
     else:
