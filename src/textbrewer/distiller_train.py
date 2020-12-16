@@ -189,14 +189,10 @@ class BasicTrainer:
         :param args:
         :return:
         """
+        batch = move_to_device(batch, self.t_config.device)
         if type(batch) is dict:
-            for k,v in batch.items():
-                if type(v) is torch.Tensor:
-                    batch[k] = v.to(self.t_config.device)
-            results = self.model(**batch, **args)
+            results = self.model(**batch,**args)
         else:
-            moved_batch = tuple(item.to(self.t_config.device) if type(item) is torch.Tensor else item for item in batch)
-            batch = moved_batch
             results = self.model(*batch, **args)
 
         results = post_adaptor(self.adaptor(batch,results))

@@ -120,6 +120,7 @@ def predict(model,eval_datasets,step,args, examples=None, label_list=None):
             df = pd.DataFrame(data_dict)
             writer = pd.ExcelWriter("eval_result.xlsx")
             df.to_excel(writer)
+            writer.save()
         logger.info(f"task:,{eval_task}")
         logger.info(f"result: {result}")
         results.update(result)

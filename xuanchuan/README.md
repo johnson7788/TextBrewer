@@ -1,3 +1,4 @@
+# 宣传提取，使用分类的效果不好，使用NER效果更好
 # 数据准备
 使用utils下的cosmetics_data_utils.py准备数据, 数据有一个简单示例
 

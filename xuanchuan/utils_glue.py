@@ -260,6 +260,9 @@ class CaiyeProcessor(MnliProcessor):
                 examples.append(
                     InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
 
+            #如果keyword是None，是我们自定义的关键字，就是预测的时候，不要加入到样本集了
+            if keyword == "None":
+                continue
             #把原本的keyword也加入
             guid = "%s-%s-%s" % (set_type, i, kidx+1)
             label_id = int(labelid)
