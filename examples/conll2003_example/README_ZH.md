@@ -1,6 +1,7 @@
 [**中文说明**](README_ZH.md) | [**English**](README.md)
 
 这个例子展示CoNLL-2003英文NER任务上的蒸馏。
+命名实体识别任务，需要标记出句子中每个词的实体类型
 
 * run_conll2003_train.sh : 在CoNLL-2003英文NER数据集上训练教师模型(BERT-base-cased)
 * run_conll2003_distill_T3.sh : 在CoNLL-2003英文NER数据集上蒸馏教师模型到T3(三层BERT)
