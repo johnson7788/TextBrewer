@@ -4,7 +4,7 @@ from .distiller_basic import BasicDistiller
 
 class GeneralDistiller(BasicDistiller):
     """
-    Supports intermediate features matching. **Recommended for single-teacher single-task distillation**.
+    支持中间特征匹配。 **推荐用于单teacher单任务蒸馏**。
 
     Args:
         train_config (:class:`TrainingConfig`): training configuration.
@@ -28,10 +28,11 @@ class GeneralDistiller(BasicDistiller):
         # custom_matches=[{'module_T': module_T, 'module_S':module_S,
         #                 'loss': loss, 'weight': weight},...]
         super(GeneralDistiller, self).__init__(train_config, distill_config, model_T, model_S, adaptor_T, adaptor_S)
-
+        # 初始化投影设置
         self.projs = []
         self.projs_group = []
         for im in self.d_config.intermediate_matches:
+            # 如果proj参数设置了，就加上, 就是我们match中提供的这个proj_func
             if im.proj is not None:
                 projection = im.proj[0]
                 dim_in = im.proj[1]
@@ -44,6 +45,7 @@ class GeneralDistiller(BasicDistiller):
                 self.projs_group.append(None)
 
         self.has_custom_matches = False
+        #自定义match
         if custom_matches:
             self.handles_T = []
             self.handles_S = []
@@ -70,7 +72,12 @@ class GeneralDistiller(BasicDistiller):
 
 
     def train_on_batch(self, batch, args):
-
+        """
+        训练一个batch的数据
+        :param batch: batch可能包括input_ids, attention_mask, labels
+        :param args:
+        :return:
+        """
         (teacher_batch, results_T), (student_batch, results_S) = get_outputs_from_batch(batch, self.t_config.device, self.model_T, self.model_S, args)
 
         results_T = post_adaptor(self.adaptor_T(teacher_batch,results_T))
@@ -90,6 +97,7 @@ class GeneralDistiller(BasicDistiller):
             logits_list_T = results_T['logits']  # list of tensor
             logits_list_S = results_S['logits']  # list of tensor
             total_kd_loss = 0
+            # logits_mask仅适用于形状为(batch_size，length，num_labels)的logits。通常用于序列标注任务中沿长度方向mask的区域。
             if 'logits_mask' in results_S:
                 masks_list_S = results_S['logits_mask']
                 logits_list_S = select_logits_with_mask(logits_list_S,masks_list_S)  #(mask_sum, num_of_class)
@@ -120,14 +128,20 @@ class GeneralDistiller(BasicDistiller):
         inters_S = {feature: results_S.get(feature,[]) for feature in FEATURES}
         inputs_mask_T = results_T.get('inputs_mask',None)
         inputs_mask_S = results_S.get('inputs_mask',None)
+        # transformers中间层映射匹配
         for ith,inter_match in enumerate(self.d_config.intermediate_matches):
+            # int， teacher的第几次
             layer_T = inter_match.layer_T
             layer_S = inter_match.layer_S
+            #  hidden 还是attention
             feature = inter_match.feature
+            #损失的类型，例如'hidden_mse'
             loss_type = inter_match.loss
+            # 匹配权重值, eg: 1
             match_weight = inter_match.weight
+            # 根据字典，获取真实的损失的函数 eg: presets.py 中的hid_mse_loss
             match_loss = MATCH_LOSS_MAP[loss_type]
-
+            # 如果提供的格式是'layer_T': [0, 0], 'layer_S': [0, 0]这样的
             if type(layer_S) is list and type(layer_T) is list:
                 inter_S = [inters_S[feature][s] for s in layer_S]
                 inter_T = [inters_T[feature][t] for t in layer_T]
@@ -137,8 +151,11 @@ class GeneralDistiller(BasicDistiller):
                     #inter_T = [self.projs[ith](t) for t in inter_T]
                     inter_S = [self.projs[ith](s) for s in inter_S]
             else:
+                # 例如取Student的hidden的第0层, inters_S{hidden:[], attention:[]} ---> torch.Size([32, 128, 768])
                 inter_S = inters_S[feature][layer_S]
+                # 取教师层的hidden或attention的值，教师层的层数多，学生的层数少，所以就可能出现这种对应情况'layer_T': [8, 8], 'layer_S': [2, 2]
                 inter_T = inters_T[feature][layer_T]
+                # 如果投影层存在，对学生层投影
                 name_S = str(layer_S)
                 name_T = str(layer_T)
                 if self.projs[ith]:
@@ -148,6 +165,7 @@ class GeneralDistiller(BasicDistiller):
             total_loss += intermediate_loss * match_weight
             losses_dict[f'unweighted_{feature}_{loss_type}_{name_S}_{name_T}'] = intermediate_loss
 
+        #是否有自定义的match
         if self.has_custom_matches:
             for hook_T, hook_S, match_weight, match_loss, proj_func  in \
                     zip(self.custom_matches_cache['hook_outputs_T'], self.custom_matches_cache['hook_outputs_S'],
@@ -158,7 +176,7 @@ class GeneralDistiller(BasicDistiller):
                 total_loss += match_weight * match_loss(hook_S,hook_T,inputs_mask_S,inputs_mask_T)
             self.custom_matches_cache['hook_outputs_T'] = []
             self.custom_matches_cache['hook_outputs_S'] = []
-
+        # 如果损失也在Student的计算中
         if 'losses' in results_S:
             total_hl_loss = 0
             for loss in results_S['losses']:
