@@ -115,11 +115,11 @@ def main():
     forward_batch_size = int(args.train_batch_size / args.gradient_accumulation_steps)
     args.forward_batch_size = forward_batch_size
 
-    #load bert config
+    #Student的Bert配置
     bert_config_S = BertConfig.from_json_file(args.bert_config_file_S)
     assert args.max_seq_length <= bert_config_S.max_position_embeddings
 
-    #Prepare GLUE task
+    #准备任务
     processor = processors[args.task_name]()
     args.output_mode = output_modes[args.task_name]
     # eg： MNLI，['contradiction', 'entailment', 'neutral'] --> [“矛盾”，“必然”，“中立”]
@@ -138,12 +138,13 @@ def main():
             aux_train_dataset = load_and_cache_examples(args, args.aux_task_name, tokenizer, evaluate=False, is_aux=True)
             train_dataset = torch.utils.data.ConcatDataset([train_dataset, aux_train_dataset])
         num_train_steps = int(len(train_dataset)/args.train_batch_size) * args.num_train_epochs
+        logger.info("训练数据集已加载")
     if args.do_predict:
         eval_datasets = []
         eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
         for eval_task in eval_task_names:
             eval_datasets.append(load_and_cache_examples(args, eval_task, tokenizer, evaluate=True))
-    logger.info("数据集已加载")
+        logger.info("预测数据集已加载")
 
 
     #加载模型并初始化, 只用student模型，其实这里相当于在MNLI数据上训练教师模型，只训练一个模型

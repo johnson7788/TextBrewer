@@ -460,7 +460,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     for (ex_index, example) in enumerate(examples):
         # 每10000条，记录下日志
         if ex_index % 10000 == 0:
-            logger.info("Writing example %d of %d" % (ex_index, len(examples)))
+            logger.info("写入样本数 %d of %d" % (ex_index, len(examples)))
         #对句子a进行tokenizer
         tokens_a = tokenizer.tokenize(example.text_a)
 

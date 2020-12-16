@@ -61,7 +61,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False)
         features = convert_examples_to_features(examples, label_list, args.max_seq_length, tokenizer, output_mode,
                                                 cls_token_segment_id=0,pad_token_segment_id=0)
         if args.local_rank in [-1, 0]:
-            logger.info("Saving features into cached file %s", cached_features_file)
+            logger.info("保存feature到缓存文件 %s", cached_features_file)
             torch.save(features, cached_features_file)
     # Convert to Tensors and build dataset
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
