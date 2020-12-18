@@ -1,27 +1,25 @@
+# coding=utf-8
 import logging
+
 logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(name)s -  %(message)s',
     datefmt='%Y/%m/%d %H:%M:%S',
     level=logging.INFO,
-    )
+)
 logger = logging.getLogger("Main")
 
-import os,random
+import os, random, time
 import numpy as np
 import torch
-from utils_glue import output_modes, processors
 from pytorch_pretrained_bert.my_modeling import BertConfig
 from pytorch_pretrained_bert import BertTokenizer
-from optimization import BERTAdam
-import config
 from utils import divide_parameters, load_and_cache_examples
 from modeling import BertSPCSimple, BertForGLUESimpleAdaptorTraining
-
-from textbrewer import DistillationConfig, TrainingConfig, BasicTrainer
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler, DistributedSampler
 from tqdm import tqdm
-from utils_glue import compute_metrics
-from functools import partial
+from utils_glue import InputExample, convert_examples_to_features
+import argparse
+
 
 from flask import Flask, request, jsonify, abort
 
@@ -45,8 +43,9 @@ def load_and_cache_examples(contents, max_seq_length, tokenizer, label_list):
         sentence, aspect = content
         examples.append(
             InputExample(guid=guid, text_a=sentence, text_b=aspect))
-    features = convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, output_mode="classification",
-                                            cls_token_segment_id=0,pad_token_segment_id=0)
+    features = convert_examples_to_features(examples, label_list, max_seq_length, tokenizer,
+                                            output_mode="classification",
+                                            cls_token_segment_id=0, pad_token_segment_id=0)
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
     all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
@@ -63,15 +62,22 @@ class TorchAsBertModel(object):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_gpu = torch.cuda.device_count() if torch.cuda.is_available() else 0
         self.tokenizer, self.model = self.load_model()
-        #句子左右最大truncate序列长度
+        # 句子左右最大truncate序列长度
         self.left_max_seq_len = 15
         self.right_max_seq_len = 20
         self.aspect_max_seq_len = 30
 
     def load_model(self):
-        #解析配置文件
+        parser = argparse.ArgumentParser()
+        args = parser.parse_args()
+        args.output_encoded_layers = True
+        args.output_attention_layers = True
+        args.output_att_score = True
+        args.output_att_sum = True
+        self.args = args
+        # 解析配置文件
         self.vocab_file = "config/chinese_bert_config_L4t.json"
-        #这里是使用的teacher的config和微调后的teacher模型, 也可以换成student的config和蒸馏后的student模型
+        # 这里是使用的teacher的config和微调后的teacher模型, 也可以换成student的config和蒸馏后的student模型
         # student config:  config/chinese_bert_config_L4t.json
         # distil student model:  distil_model/gs8316.pkl
         self.bert_config_file_S = "bert_model/config.json"
@@ -86,7 +92,7 @@ class TorchAsBertModel(object):
         tokenizer = BertTokenizer(vocab_file=self.vocab_file)
 
         # 加载模型
-        model_S = BertSPCSimple(bert_config_S, num_labels=self.num_labels)
+        model_S = BertSPCSimple(bert_config_S, num_labels=self.num_labels, args=self.args)
         state_dict_S = torch.load(self.tuned_checkpoint_S, map_location=self.device)
         model_S.load_state_dict(state_dict_S)
         if self.verbose:
@@ -150,6 +156,22 @@ class TorchAsBertModel(object):
 
         # TODO 输入为一条数据，返回也只返回一条结果即可以了
         return res
+    def predict_batch_without_turncate(self, data):
+        """
+        batch_size数据处理
+        :param data: 是一个要处理的数据列表[(content,aspect),...,]
+        :return:
+        """
+        eval_dataset = load_and_cache_examples(data, self.max_seq_length, self.tokenizer, self.label_list)
+        if self.verbose:
+            print("评估数据集已加载")
+
+        res = self.do_predict(self.model, eval_dataset)
+        if self.verbose:
+            print(f"预测的结果是: {res}, {[self.label_list[id] for id in res]}")
+
+        # TODO 输入为一条数据，返回也只返回一条结果即可以了
+        return res
 
     def do_predict(self, model, eval_dataset):
         # 任务名字
@@ -188,8 +210,9 @@ class TorchAsBertModel(object):
         cost_time = time.time() - start_time
         if self.verbose:
             print(
-            f"--- 评估{len(eval_dataset)}条数据的总耗时是 {cost_time} seconds, 每条耗时 {cost_time / len(eval_dataset)} seconds ---")
+                f"--- 评估{len(eval_dataset)}条数据的总耗时是 {cost_time} seconds, 每条耗时 {cost_time / len(eval_dataset)} seconds ---")
         return results
+
 
 @app.route("/api", methods=['POST'])
 def api():
@@ -199,10 +222,11 @@ def api():
     Returns:
     """
     jsonres = request.get_json()
-    test_data = jsonres.get('data',None)
+    test_data = jsonres.get('data', None)
     model = TorchAsBertModel()
-    results = model.predict_batch(test_data)
+    results = model.predict_batch_without_turncate(test_data)
     return jsonify(results)
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
