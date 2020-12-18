@@ -92,7 +92,7 @@ class BertForGLUE(nn.Module):
             else:
                 return logits, None
 
-class BertForGLUESimple(nn.Module):
+class BertSPCSimple(nn.Module):
     def __init__(self, config, num_labels, args):
         """
         简单的分类任务
@@ -100,7 +100,7 @@ class BertForGLUESimple(nn.Module):
         :param num_labels: int   eg ：3
         :param args:
         """
-        super(BertForGLUESimple, self).__init__()
+        super(BertSPCSimple, self).__init__()
         self.num_labels = num_labels
         self.output_encoded_layers   = (args.output_encoded_layers=='true')
         self.output_attention_layers = (args.output_attention_layers=='true')
@@ -134,7 +134,6 @@ class BertForGLUESimple(nn.Module):
             return logits, sequence_output, attention_output, loss
         else:
             return logits
-
 
 
 def BertForGLUESimpleAdaptor(batch, model_outputs, no_logits, no_mask):

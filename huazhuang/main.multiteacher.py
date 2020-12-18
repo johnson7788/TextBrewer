@@ -15,7 +15,7 @@ from pytorch_pretrained_bert import BertTokenizer
 from optimization import BERTAdam
 import config
 from utils import divide_parameters, load_and_cache_examples
-from modeling import BertForGLUESimple,BertForGLUESimpleAdaptor
+from modeling import BertSPCSimple,BertForGLUESimpleAdaptor
 
 from textbrewer import DistillationConfig, TrainingConfig, MultiTeacherDistiller
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler, DistributedSampler
@@ -148,10 +148,10 @@ def main():
 
     #Build Model and load checkpoint
 
-    model_S = BertForGLUESimple(bert_config_S, num_labels=num_labels,args=args)
+    model_S = BertSPCSimple(bert_config_S, num_labels=num_labels,args=args)
     #Load teacher
     if args.tuned_checkpoint_Ts:
-        model_Ts = [BertForGLUESimple(bert_config_T, num_labels=num_labels,args=args) for i in range(len(args.tuned_checkpoint_Ts))]
+        model_Ts = [BertSPCSimple(bert_config_T, num_labels=num_labels,args=args) for i in range(len(args.tuned_checkpoint_Ts))]
         for model_T, ckpt_T in zip(model_Ts,args.tuned_checkpoint_Ts):
             logger.info("Load state dict %s" % ckpt_T)
             state_dict_T = torch.load(ckpt_T, map_location='cpu')

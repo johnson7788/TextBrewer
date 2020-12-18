@@ -16,7 +16,7 @@ from pytorch_pretrained_bert import BertTokenizer
 from optimization import BERTAdam
 import config
 from utils import divide_parameters, load_and_cache_examples
-from modeling import BertForGLUESimple,BertForGLUESimpleAdaptor
+from modeling import BertSPCSimple,BertForGLUESimpleAdaptor
 
 from textbrewer import DistillationConfig, TrainingConfig, GeneralDistiller
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler, DistributedSampler
@@ -152,8 +152,8 @@ def main():
     logger.info("数据集加载成功")
 
     #加载模型，加载teacher和student模型
-    model_T = BertForGLUESimple(bert_config_T, num_labels=num_labels,args=args)
-    model_S = BertForGLUESimple(bert_config_S, num_labels=num_labels,args=args)
+    model_T = BertSPCSimple(bert_config_T, num_labels=num_labels,args=args)
+    model_S = BertSPCSimple(bert_config_S, num_labels=num_labels,args=args)
     #加载teacher模型参数
     if args.tuned_checkpoint_T is not None:
         state_dict_T = torch.load(args.tuned_checkpoint_T, map_location='cpu')

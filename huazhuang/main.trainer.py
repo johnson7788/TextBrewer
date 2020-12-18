@@ -15,7 +15,7 @@ from pytorch_pretrained_bert import BertTokenizer
 from optimization import BERTAdam
 import config
 from utils import divide_parameters, load_and_cache_examples
-from modeling import BertForGLUESimple,BertForGLUESimpleAdaptorTraining
+from modeling import BertSPCSimple,BertForGLUESimpleAdaptorTraining
 
 from textbrewer import DistillationConfig, TrainingConfig, BasicTrainer
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler, DistributedSampler
@@ -149,7 +149,7 @@ def main():
 
 
     #加载模型并初始化, 只用student模型，其实这里相当于在MNLI数据上训练教师模型，只训练一个模型
-    model_S = BertForGLUESimple(bert_config_S, num_labels=num_labels,args=args)
+    model_S = BertSPCSimple(bert_config_S, num_labels=num_labels,args=args)
     #初始化student模型
     if args.load_model_type=='bert':
         assert args.init_checkpoint_S is not None
