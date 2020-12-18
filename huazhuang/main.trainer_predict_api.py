@@ -13,7 +13,6 @@ import numpy as np
 import torch
 from pytorch_pretrained_bert.my_modeling import BertConfig
 from pytorch_pretrained_bert import BertTokenizer
-from utils import divide_parameters, load_and_cache_examples
 from modeling import BertSPCSimple, BertForGLUESimpleAdaptorTraining
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler, DistributedSampler
 from tqdm import tqdm
@@ -30,7 +29,7 @@ from flask import Flask, request, jsonify, abort
 app = Flask(__name__)
 
 
-def load_and_cache_examples(contents, max_seq_length, tokenizer, label_list):
+def load_examples(contents, max_seq_length, tokenizer, label_list):
     """
     :param contents:  eg: [('苹果很好用', '苹果')]
     :param max_seq_length:
@@ -75,8 +74,8 @@ class TorchAsBertModel(object):
         args.output_att_score = True
         args.output_att_sum = True
         self.args = args
-        # 解析配置文件
-        self.vocab_file = "config/chinese_bert_config_L4t.json"
+        # 解析配置文件, 教师模型和student模型的vocab是不变的
+        self.vocab_file = "bert_model/vocab.txt"
         # 这里是使用的teacher的config和微调后的teacher模型, 也可以换成student的config和蒸馏后的student模型
         # student config:  config/chinese_bert_config_L4t.json
         # distil student model:  distil_model/gs8316.pkl
@@ -146,7 +145,7 @@ class TorchAsBertModel(object):
             new_content = text_left + aspect + text_right
             contents.append((new_content, aspect))
 
-        eval_dataset = load_and_cache_examples(contents, self.max_seq_length, self.tokenizer, self.label_list)
+        eval_dataset = load_examples(contents, self.max_seq_length, self.tokenizer, self.label_list)
         if self.verbose:
             print("评估数据集已加载")
 
@@ -162,7 +161,7 @@ class TorchAsBertModel(object):
         :param data: 是一个要处理的数据列表[(content,aspect),...,]
         :return:
         """
-        eval_dataset = load_and_cache_examples(data, self.max_seq_length, self.tokenizer, self.label_list)
+        eval_dataset = load_examples(data, self.max_seq_length, self.tokenizer, self.label_list)
         if self.verbose:
             print("评估数据集已加载")
 
@@ -170,8 +169,9 @@ class TorchAsBertModel(object):
         if self.verbose:
             print(f"预测的结果是: {res}, {[self.label_list[id] for id in res]}")
 
-        # TODO 输入为一条数据，返回也只返回一条结果即可以了
-        return res
+        #把id变成标签
+        result = [self.label_list[r] for r in res]
+        return result
 
     def do_predict(self, model, eval_dataset):
         # 任务名字

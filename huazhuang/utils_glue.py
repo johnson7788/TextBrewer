@@ -460,7 +460,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     for (ex_index, example) in enumerate(examples):
         # 每10000条，记录下日志
         if ex_index % 10000 == 0:
-            logger.info("写入样本数 %d of %d" % (ex_index, len(examples)))
+            logger.info("完成样本数 %d of %d" % (ex_index, len(examples)))
         #对句子a进行tokenizer
         tokens_a = tokenizer.tokenize(example.text_a)
 
@@ -522,12 +522,16 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
 
-        if output_mode == "classification":
-            label_id = label_map[example.label]
-        elif output_mode == "regression":
-            label_id = float(example.label)
+        #仅当label不是None的时候才做此操作,否则，全部给-100，占位而已，因为预测会用到
+        if example.label:
+            if output_mode == "classification":
+                label_id = label_map[example.label]
+            elif output_mode == "regression":
+                label_id = float(example.label)
+            else:
+                raise KeyError(output_mode)
         else:
-            raise KeyError(output_mode)
+            label_id = -100
 
         if ex_index < 5:
             logger.info("*** Example ***")
@@ -538,6 +542,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
             logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
             logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
             logger.info("label: %s (id = %d)" % (example.label, label_id))
+            logger.info("当label为-100时，仅是预测时，占位而已，没有用")
 
         features.append(
                 InputFeatures(input_ids=input_ids,
