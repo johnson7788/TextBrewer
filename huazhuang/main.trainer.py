@@ -150,7 +150,7 @@ def main():
 
     #加载模型并初始化, 只用student模型，其实这里相当于在MNLI数据上训练教师模型，只训练一个模型
     model_S = BertSPCSimple(bert_config_S, num_labels=num_labels,args=args)
-    #初始化student模型
+    #初始化student模型, 使用student模型预测
     if args.load_model_type=='bert':
         assert args.init_checkpoint_S is not None
         state_dict_S = torch.load(args.init_checkpoint_S, map_location='cpu')

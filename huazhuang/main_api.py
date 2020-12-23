@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # @Date  : 2020/12/23 4:56 下午
-# @File  : main.trainer_predict_api.py
+# @File  : api.py
 # @Author: johnson
 # @Contact : github: johnson7788
 # @Desc  :
+######################################################
+# 使用没有蒸馏的模型预测，改造成一个flask api，
+# 包括训练接口api和预测接口api
+# /api/train
+# /api/predict
+######################################################
+
 import logging
 
 logging.basicConfig(
@@ -28,10 +35,6 @@ import argparse
 
 from flask import Flask, request, jsonify, abort
 
-######################################################
-# 使用没有蒸馏的模型预测，改造成一个flask api，
-######################################################
-
 app = Flask(__name__)
 
 
@@ -45,16 +48,26 @@ def load_examples(contents, max_seq_length, tokenizer, label_list):
     """
     examples = []
     for guid, content in enumerate(contents):
-        sentence, aspect = content
-        examples.append(
-            InputExample(guid=guid, text_a=sentence, text_b=aspect))
+        if len(content) == 2:
+            #表示只有sentence和aspect关键字，用于预测
+            sentence, aspect = content
+            examples.append(
+                InputExample(guid=guid, text_a=sentence, text_b=aspect))
+        elif len(content) == 3:
+            # 表示内容是sentence和aspect关键字和label，一般用于训练
+            sentence, aspect, label_id = content
+            examples.append(
+                InputExample(guid=guid, text_a=sentence, text_b=aspect, label_id=label_id))
+        else:
+            print(f"这条数据有问题，过滤掉: {guid}: {content}")
     features = convert_examples_to_features(examples, label_list, max_seq_length, tokenizer,
                                             output_mode="classification",
                                             cls_token_segment_id=0, pad_token_segment_id=0)
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
     all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-    dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids)
+    all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
+    dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
     return dataset
 
 
@@ -219,10 +232,22 @@ class TorchAsBertModel(object):
                 f"--- 评估{len(eval_dataset)}条数据的总耗时是 {cost_time} seconds, 每条耗时 {cost_time / len(eval_dataset)} seconds ---")
         return results
 
+    def do_train(self, data):
+        """
+        训练模型
+        :return:
+        """
+        train_dataset = load_examples(data, self.max_seq_length, self.tokenizer, self.label_list)
+        if self.verbose:
+            print("训练数据集已加载,开始训练")
+        # 开始训练
+        pass
 
-@app.route("/api", methods=['POST'])
-def api():
+
+@app.route("/api/predict", methods=['POST'])
+def predict():
     """
+    接收POST请求，获取data参数
     Args:
         test_data: 需要预测的数据，是一个文字列表, [(content,aspect),...,]
     Returns:
@@ -231,6 +256,20 @@ def api():
     test_data = jsonres.get('data', None)
     model = TorchAsBertModel()
     results = model.predict_batch_without_turncate(test_data)
+    return jsonify(results)
+
+@app.route("/api/train", methods=['POST'])
+def train():
+    """
+    接收data参数，
+    Args:
+        data: 训练的数据，是一个文字列表, [(content,aspect,label),...,]
+    Returns:
+    """
+    jsonres = request.get_json()
+    data = jsonres.get('data', None)
+    model = TorchAsBertModel()
+    results = model.do_train(data)
     return jsonify(results)
 
 
