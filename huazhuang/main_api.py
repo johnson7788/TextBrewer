@@ -225,12 +225,12 @@ class TorchAsBertModel(object):
         if self.verbose:
             print("评估数据集已加载")
 
-        res = self.do_predict(self.model, eval_dataset)
+        predictids, probability = self.do_predict(model=self.model, eval_dataset=eval_dataset)
         if self.verbose:
-            print(f"预测的结果是: {res}, {[self.label_list[id] for id in res]}")
+            print(f"预测的结果是: {predictids}, {[self.label_list[id] for id in predictids]}")
 
         # TODO 输入为一条数据，返回也只返回一条结果即可以了
-        return res
+        return predictids
     def predict_batch_without_turncate(self, data):
         """
         batch_size数据处理
@@ -242,7 +242,7 @@ class TorchAsBertModel(object):
         if self.verbose:
             print("评估数据集已加载")
 
-        predictids, probability = self.do_predict(eval_dataset)
+        predictids, probability = self.do_predict(model=self.model, eval_dataset=eval_dataset)
         if self.verbose:
             print(f"预测的结果是: {predictids}, {[self.label_list[id] for id in predictids]}")
 
@@ -251,9 +251,10 @@ class TorchAsBertModel(object):
         results = list(zip(predict_labels,probability))
         return results
 
-    def do_predict(self, eval_dataset):
+    def do_predict(self, model, eval_dataset):
         """
         :param eval_dataset:
+        :param model 参数必须携带，因为训练的callback会调用评估模型时会传入model
         :return: 2个list，一个是预测的id列表，一个是预测的probability列表
         """
         # 任务名字
@@ -264,8 +265,8 @@ class TorchAsBertModel(object):
         # 评估样本
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=self.predict_batch_size)
-        self.model.eval()
-        self.model.to(self.device)
+        model.eval()
+        model.to(self.device)
         # 起始时间
         start_time = time.time()
         # 存储预测值
@@ -276,7 +277,7 @@ class TorchAsBertModel(object):
             input_mask = input_mask.to(self.device)
             segment_ids = segment_ids.to(self.device)
             with torch.no_grad():
-                logits = self.model(input_ids, input_mask, segment_ids)
+                logits = model(input_ids, input_mask, segment_ids)
             cpu_logits = logits.detach().cpu()
             for i in range(len(cpu_logits)):
                 pred_logits.append(cpu_logits[i].numpy())
