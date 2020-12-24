@@ -330,7 +330,7 @@ class TorchAsBertModel(object):
 
         train_sampler = RandomSampler(train_dataset)
         #训练的dataloader
-        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=forward_batch_size,drop_last=True)
+        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=forward_batch_size, drop_last=True)
         #执行callbakc函数，对eval数据集
         callback_func = partial(self.do_predict, eval_datasets=eval_dataset)
         with distiller:
