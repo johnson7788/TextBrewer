@@ -344,7 +344,7 @@ def predict():
     接收POST请求，获取data参数
     Args:
         test_data: 需要预测的数据，是一个文字列表, [(content,aspect),...,]
-    Returns:
+    Returns: 返回格式是 [(predicted_label, predict_score),...]
     """
     jsonres = request.get_json()
     test_data = jsonres.get('data', None)
