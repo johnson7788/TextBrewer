@@ -35,6 +35,7 @@ from functools import partial
 from tqdm import tqdm
 from utils_glue import InputExample, convert_examples_to_features
 import argparse
+import scipy
 
 
 from flask import Flask, request, jsonify, abort
@@ -234,24 +235,28 @@ class TorchAsBertModel(object):
         """
         batch_size数据处理
         :param data: 是一个要处理的数据列表[(content,aspect),...,]
-        :return:
+        :return:, 返回格式是 [(predicted_label, predict_score),...]
         """
         self.load_predict_model()
         eval_dataset = load_examples(data, self.max_seq_length, self.tokenizer, self.label_list)
         if self.verbose:
             print("评估数据集已加载")
 
-        res = self.do_predict(eval_dataset)
+        predictids, probability = self.do_predict(eval_dataset)
         if self.verbose:
-            print(f"预测的结果是: {res}, {[self.label_list[id] for id in res]}")
+            print(f"预测的结果是: {predictids}, {[self.label_list[id] for id in predictids]}")
 
         #把id变成标签
-        result = [self.label_list[r] for r in res]
-        return result
+        predict_labels = [self.label_list[r] for r in predictids]
+        results = list(zip(predict_labels,probability))
+        return results
 
     def do_predict(self, eval_dataset):
+        """
+        :param eval_dataset:
+        :return: 2个list，一个是预测的id列表，一个是预测的probability列表
+        """
         # 任务名字
-        results = []
         if self.verbose:
             print("***** 开始预测 *****")
             print(" 样本数 = %d", len(eval_dataset))
@@ -266,7 +271,7 @@ class TorchAsBertModel(object):
         # 存储预测值
         pred_logits = []
         for batch in tqdm(eval_dataloader, desc="评估中", disable=True):
-            input_ids, input_mask, segment_ids = batch
+            input_ids, input_mask, segment_ids, _ = batch
             input_ids = input_ids.to(self.device)
             input_mask = input_mask.to(self.device)
             segment_ids = segment_ids.to(self.device)
@@ -281,13 +286,17 @@ class TorchAsBertModel(object):
         preds = np.argmax(pred_logits, axis=1)
         if self.verbose:
             print(f"preds: {preds}")
-        results.extend(preds.tolist())
+        predictids = preds.tolist()
+        #获取最大概率的可能性，即分数
+        pred_logits_softmax = scipy.special.softmax(pred_logits, axis=1)
+        probability = np.max(pred_logits_softmax, axis=1)
+        probability = probability.tolist()
 
         cost_time = time.time() - start_time
         if self.verbose:
             print(
                 f"--- 评估{len(eval_dataset)}条数据的总耗时是 {cost_time} seconds, 每条耗时 {cost_time / len(eval_dataset)} seconds ---")
-        return results
+        return predictids, probability
 
     def do_train(self, data):
         """
@@ -338,6 +347,7 @@ class TorchAsBertModel(object):
             distiller.train(optimizer, scheduler=None, dataloader=train_dataloader,
                               num_epochs=self.num_train_epochs, callback=callback_func)
         logger.info(f"训练完成")
+        return "Done"
 @app.route("/api/predict", methods=['POST'])
 def predict():
     """
