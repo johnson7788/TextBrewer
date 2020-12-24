@@ -84,10 +84,16 @@ class TorchAsBertModel(object):
         # 判断使用的设备
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_gpu = torch.cuda.device_count() if torch.cuda.is_available() else 0
+        # 预测的batch_size大小
+        self.train_batch_size = 8
+        # 预测的batch_size大小
+        self.predict_batch_size = 64
         # 句子左右最大truncate序列长度
         self.left_max_seq_len = 15
         self.right_max_seq_len = 20
         self.aspect_max_seq_len = 30
+        self.load_predict_model()
+        self.load_train_model()
 
     def load_train_model(self):
         """
@@ -122,8 +128,6 @@ class TorchAsBertModel(object):
         self.bert_config_file_S = "mac_bert_model/config.json"
         self.tuned_checkpoint_S = "mac_bert_model/pytorch_model.bin"
         self.max_seq_length = 70
-        # 预测的batch_size大小
-        self.train_batch_size = 8
         # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
         bert_config_S = BertConfig.from_json_file(self.bert_config_file_S)
 
@@ -137,8 +141,8 @@ class TorchAsBertModel(object):
         missing_keys, _ = model_S.bert.load_state_dict(state_weight, strict=False)
         #验证下参数没有丢失
         assert len(missing_keys) == 0
-        self.tokenizer = tokenizer
-        self.model = model_S
+        self.train_tokenizer = tokenizer
+        self.train_model = model_S
         logger.info("训练模型加载完成")
 
     def load_predict_model(self):
@@ -157,8 +161,6 @@ class TorchAsBertModel(object):
         self.bert_config_file_S = "bert_model/config.json"
         self.tuned_checkpoint_S = "trained_teacher_model/gs3024.pkl"
         self.max_seq_length = 70
-        # 预测的batch_size大小
-        self.predict_batch_size = 64
         # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
         bert_config_S = BertConfig.from_json_file(self.bert_config_file_S)
 
@@ -171,8 +173,9 @@ class TorchAsBertModel(object):
         model_S.load_state_dict(state_dict_S)
         if self.verbose:
             print("模型已加载")
-        self.tokenizer = tokenizer
-        self.model =  model_S
+        self.predict_tokenizer = tokenizer
+        self.predict_model =  model_S
+        logger.info("预测模型加载完成")
 
     def truncate(self, input_text, max_len, trun_post='post'):
         """
@@ -211,7 +214,6 @@ class TorchAsBertModel(object):
         :param data: 是一个要处理的数据列表
         :return:
         """
-        self.load_predict_model()
         contents = []
         for one_data in data:
             content, aspect, aspect_start, aspect_end = one_data
@@ -221,11 +223,11 @@ class TorchAsBertModel(object):
             new_content = text_left + aspect + text_right
             contents.append((new_content, aspect))
 
-        eval_dataset = load_examples(contents, self.max_seq_length, self.tokenizer, self.label_list)
+        eval_dataset = load_examples(contents, self.max_seq_length, self.predict_tokenizer, self.label_list)
         if self.verbose:
             print("评估数据集已加载")
 
-        predictids, probability = self.do_predict(model=self.model, eval_dataset=eval_dataset)
+        predictids, probability = self.do_predict(model=self.predict_model, eval_dataset=eval_dataset)
         if self.verbose:
             print(f"预测的结果是: {predictids}, {[self.label_list[id] for id in predictids]}")
 
@@ -237,12 +239,11 @@ class TorchAsBertModel(object):
         :param data: 是一个要处理的数据列表[(content,aspect),...,]
         :return:, 返回格式是 [(predicted_label, predict_score),...]
         """
-        self.load_predict_model()
-        eval_dataset = load_examples(data, self.max_seq_length, self.tokenizer, self.label_list)
+        eval_dataset = load_examples(data, self.max_seq_length, self.predict_tokenizer, self.label_list)
         if self.verbose:
             print("评估数据集已加载")
 
-        predictids, probability = self.do_predict(model=self.model, eval_dataset=eval_dataset)
+        predictids, probability = self.do_predict(model=self.predict_model, eval_dataset=eval_dataset)
         if self.verbose:
             print(f"预测的结果是: {predictids}, {[self.label_list[id] for id in predictids]}")
 
@@ -251,7 +252,7 @@ class TorchAsBertModel(object):
         results = list(zip(predict_labels,probability))
         return results
 
-    def do_predict(self, model, eval_dataset):
+    def do_predict(self, model, eval_dataset, step=0):
         """
         :param eval_dataset:
         :param model 参数必须携带，因为训练的callback会调用评估模型时会传入model
@@ -261,6 +262,7 @@ class TorchAsBertModel(object):
         if self.verbose:
             print("***** 开始预测 *****")
             print(" 样本数 = %d", len(eval_dataset))
+            print(" Step数 = %d", step)
             print(" Batch size = %d", self.predict_batch_size)
         # 评估样本
         eval_sampler = SequentialSampler(eval_dataset)
@@ -304,17 +306,16 @@ class TorchAsBertModel(object):
         训练模型, 数据集分成2部分，训练集和验证集, 默认比例9:1
         :return:
         """
-        self.load_train_model()
         train_data_len = int(len(data) * 0.9)
         train_data = data[:train_data_len]
         eval_data = data[train_data_len:]
-        train_dataset = load_examples(train_data, self.max_seq_length, self.tokenizer, self.label_list)
-        eval_dataset = load_examples(eval_data, self.max_seq_length, self.tokenizer, self.label_list)
+        train_dataset = load_examples(train_data, self.max_seq_length, self.train_tokenizer, self.label_list)
+        eval_dataset = load_examples(eval_data, self.max_seq_length, self.train_tokenizer, self.label_list)
         logger.info("训练数据集已加载,开始训练")
         num_train_steps = int(len(train_dataset) / self.train_batch_size) * self.num_train_epochs
         forward_batch_size = int(self.train_batch_size / self.gradient_accumulation_steps)
         # 开始训练
-        params = list(self.model.named_parameters())
+        params = list(self.train_model.named_parameters())
         all_trainable_params = divide_parameters(params, lr=self.learning_rate, weight_decay_rate=self.weight_decay_rate)
         # 优化器设置
         optimizer = BERTAdam(all_trainable_params, lr=self.learning_rate,
@@ -335,7 +336,7 @@ class TorchAsBertModel(object):
             device = self.device)
         #初始化trainer，执行监督训练，而不是蒸馏。它可以把model_S模型训练成为teacher模型
         distiller = BasicTrainer(train_config = train_config,
-                                 model = self.model,
+                                 model = self.train_model,
                                  adaptor = BertForGLUESimpleAdaptorTraining)
 
         train_sampler = RandomSampler(train_dataset)
