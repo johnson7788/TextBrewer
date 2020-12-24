@@ -360,7 +360,7 @@ def predict():
     """
     jsonres = request.get_json()
     test_data = jsonres.get('data', None)
-    model = TorchAsBertModel()
+    # model = TorchAsBertModel()
     results = model.predict_batch_without_turncate(test_data)
     logger.info(f"收到的数据是:{test_data}")
     logger.info(f"预测的结果是:{results}")
@@ -377,10 +377,11 @@ def train():
     jsonres = request.get_json()
     data = jsonres.get('data', None)
     logger.info(f"收到的数据是:{data}, 进行训练")
-    model = TorchAsBertModel()
+    # model = TorchAsBertModel()
     results = model.do_train(data)
     return jsonify(results)
 
 
 if __name__ == "__main__":
+    model = TorchAsBertModel()
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
