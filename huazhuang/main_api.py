@@ -321,10 +321,10 @@ class TorchAsBertModel(object):
                              s_opt1=self.s_opt1, s_opt2=self.s_opt2, s_opt3=self.s_opt3)
 
         logger.info("***** 开始训练 *****")
-        logger.info("  样本数是 = %d", len(train_dataset))
+        logger.info("  训练样本数是 = %d", len(train_dataset))
+        logger.info("  评估样本数是 = %d", len(eval_dataset))
         logger.info("  前向 batch size = %d", forward_batch_size)
         logger.info("  训练的steps = %d", num_train_steps)
-
         ########### 训练的配置 ###########
         train_config = TrainingConfig(
             gradient_accumulation_steps = self.gradient_accumulation_steps,
@@ -360,6 +360,8 @@ def predict():
     test_data = jsonres.get('data', None)
     model = TorchAsBertModel()
     results = model.predict_batch_without_turncate(test_data)
+    logger.info(f"收到的数据是:{test_data}")
+    logger.info(f"预测的结果是:{results}")
     return jsonify(results)
 
 @app.route("/api/train", methods=['POST'])
@@ -372,6 +374,7 @@ def train():
     """
     jsonres = request.get_json()
     data = jsonres.get('data', None)
+    logger.info(f"收到的数据是:{data}, 进行训练")
     model = TorchAsBertModel()
     results = model.do_train(data)
     return jsonify(results)
