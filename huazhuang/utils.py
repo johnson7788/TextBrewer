@@ -75,7 +75,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False)
     return dataset
 
 
-def divide_parameters(named_parameters,lr=None):
+def divide_parameters(named_parameters,lr=None, weight_decay_rate=None):
     """
     给不同的模型参数分配学习率是否衰减
     :param named_parameters:
@@ -89,11 +89,12 @@ def divide_parameters(named_parameters,lr=None):
     param_group = []
     if len(decay_parameters_names)>0:
         decay_parameters, decay_names = decay_parameters_names
+        weight_drate = weight_decay_rate if weight_decay_rate else config.args.weight_decay_rate
         #print ("decay:",decay_names)
         if lr is not None:
-            decay_group = {'params':decay_parameters,   'weight_decay_rate': config.args.weight_decay_rate, 'lr':lr}
+            decay_group = {'params':decay_parameters,   'weight_decay_rate': weight_drate, 'lr':lr}
         else:
-            decay_group = {'params': decay_parameters, 'weight_decay_rate': config.args.weight_decay_rate}
+            decay_group = {'params': decay_parameters, 'weight_decay_rate': weight_drate}
         param_group.append(decay_group)
 
     if len(no_decay_parameters_names)>0:

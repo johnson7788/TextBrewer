@@ -59,9 +59,9 @@ def load_examples(contents, max_seq_length, tokenizer, label_list):
                 InputExample(guid=guid, text_a=sentence, text_b=aspect))
         elif len(content) == 3:
             # 表示内容是sentence和aspect关键字和label，一般用于训练
-            sentence, aspect, label_id = content
+            sentence, aspect, label = content
             examples.append(
-                InputExample(guid=guid, text_a=sentence, text_b=aspect, label_id=label_id))
+                InputExample(guid=guid, text_a=sentence, text_b=aspect, label=label))
         else:
             print(f"这条数据有问题，过滤掉: {guid}: {content}")
     features = convert_examples_to_features(examples, label_list, max_seq_length, tokenizer,
@@ -78,7 +78,7 @@ def load_examples(contents, max_seq_length, tokenizer, label_list):
 class TorchAsBertModel(object):
     def __init__(self, verbose=0):
         self.verbose = verbose
-        self.label_list = ["NEG", "NEU", "POS"]
+        self.label_list = ["积极", "消极", "中性"]
         self.num_labels = len(self.label_list)
         # 判断使用的设备
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -108,6 +108,7 @@ class TorchAsBertModel(object):
         self.s_opt1 = 30.0
         self.s_opt2 = 0.0
         self.s_opt3 = 1.0
+        self.weight_decay_rate = 0.01
         #训练多少epcoh保存一次模型
         self.ckpt_frequency = 1
         #模型和日志保存的位置
@@ -131,11 +132,13 @@ class TorchAsBertModel(object):
         # 加载模型
         model_S = BertSPCSimple(bert_config_S, num_labels=self.num_labels, args=self.args)
         state_dict_S = torch.load(self.tuned_checkpoint_S, map_location=self.device)
-        model_S.load_state_dict(state_dict_S)
-        if self.verbose:
-            print("模型已加载")
+        state_weight = {k[5:]: v for k, v in state_dict_S.items() if k.startswith('bert.')}
+        missing_keys, _ = model_S.bert.load_state_dict(state_weight, strict=False)
+        #验证下参数没有丢失
+        assert len(missing_keys) == 0
         self.tokenizer = tokenizer
         self.model = model_S
+        logger.info("训练模型加载完成")
 
     def load_predict_model(self):
         parser = argparse.ArgumentParser()
@@ -292,14 +295,17 @@ class TorchAsBertModel(object):
         :return:
         """
         self.load_train_model()
-        train_dataset = load_examples(data, self.max_seq_length, self.tokenizer, self.label_list)
-        if self.verbose:
-            print("训练数据集已加载,开始训练")
+        train_data_len = int(len(data) * 0.9)
+        train_data = data[:train_data_len]
+        eval_data = data[train_data_len:]
+        train_dataset = load_examples(train_data, self.max_seq_length, self.tokenizer, self.label_list)
+        eval_dataset = load_examples(eval_data, self.max_seq_length, self.tokenizer, self.label_list)
+        logger.info("训练数据集已加载,开始训练")
         num_train_steps = int(len(train_dataset) / self.train_batch_size) * self.num_train_epochs
         forward_batch_size = int(self.train_batch_size / self.gradient_accumulation_steps)
         # 开始训练
         params = list(self.model.named_parameters())
-        all_trainable_params = divide_parameters(params, lr=self.learning_rate)
+        all_trainable_params = divide_parameters(params, lr=self.learning_rate, weight_decay_rate=self.weight_decay_rate)
         # 优化器设置
         optimizer = BERTAdam(all_trainable_params, lr=self.learning_rate,
                              warmup=self.warmup_proportion, t_total=num_train_steps, schedule=self.schedule,
@@ -326,12 +332,12 @@ class TorchAsBertModel(object):
         #训练的dataloader
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=forward_batch_size,drop_last=True)
         #执行callbakc函数，对eval数据集
-        callback_func = partial(self.do_predict, eval_datasets=eval_datasets)
+        callback_func = partial(self.do_predict, eval_datasets=eval_dataset)
         with distiller:
             #开始训练
             distiller.train(optimizer, scheduler=None, dataloader=train_dataloader,
                               num_epochs=self.num_train_epochs, callback=callback_func)
-
+        logger.info(f"训练完成")
 @app.route("/api/predict", methods=['POST'])
 def predict():
     """
