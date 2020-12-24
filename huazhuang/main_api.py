@@ -122,7 +122,7 @@ class TorchAsBertModel(object):
         self.tuned_checkpoint_S = "mac_bert_model/pytorch_model.bin"
         self.max_seq_length = 70
         # 预测的batch_size大小
-        self.train_batch_size = 64
+        self.train_batch_size = 8
         # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
         bert_config_S = BertConfig.from_json_file(self.bert_config_file_S)
 
