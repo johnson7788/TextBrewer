@@ -109,7 +109,7 @@ class TorchAsBertModel(object):
         self.learning_rate = 2e-05
         #学习率 warmup的比例
         self.warmup_proportion = 0.1
-        self.num_train_epochs = 2
+        self.num_train_epochs = 1
         #使用的学习率scheduler
         self.schedule = 'slanted_triangular'
         self.s_opt1 = 30.0
