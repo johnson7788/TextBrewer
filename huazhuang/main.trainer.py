@@ -148,9 +148,9 @@ def main():
         logger.info("预测数据集已加载")
 
 
-    #加载模型并初始化, 只用student模型，其实这里相当于在MNLI数据上训练教师模型，只训练一个模型
+    #加载模型配置, 只用student模型，其实这里相当于在MNLI数据上训练教师模型，只训练一个模型
     model_S = BertSPCSimple(bert_config_S, num_labels=num_labels,args=args)
-    #初始化student模型, 使用student模型预测
+    #对加载后的student模型的参数进行初始化, 使用student模型预测
     if args.load_model_type=='bert':
         assert args.init_checkpoint_S is not None
         state_dict_S = torch.load(args.init_checkpoint_S, map_location='cpu')
@@ -170,8 +170,8 @@ def main():
         logger.info("Model loaded")
     else:
         logger.info("Model is randomly initialized.")
+    #模型move to device
     model_S.to(device)
-
     if args.local_rank != -1 or n_gpu > 1:
         if args.local_rank != -1:
             raise NotImplementedError
@@ -179,21 +179,21 @@ def main():
             model_S = torch.nn.DataParallel(model_S) #,output_device=n_gpu-1)
 
     if args.do_train:
-        #parameters
+        #parameters， params是模型的所有参数组成的列表
         params = list(model_S.named_parameters())
         all_trainable_params = divide_parameters(params, lr=args.learning_rate)
-        logger.info("Length of all_trainable_params: %d", len(all_trainable_params))
+        logger.info("要训练的模型参数量组是,包括decay_group和no_decay_group: %d", len(all_trainable_params))
         # 优化器设置
         optimizer = BERTAdam(all_trainable_params,lr=args.learning_rate,
                              warmup=args.warmup_proportion,t_total=num_train_steps,schedule=args.schedule,
                              s_opt1=args.s_opt1, s_opt2=args.s_opt2, s_opt3=args.s_opt3)
 
-        logger.info("***** Running training *****")
-        logger.info("  Num examples = %d", len(train_dataset))
-        logger.info("  Forward batch size = %d", forward_batch_size)
-        logger.info("  Num backward steps = %d", num_train_steps)
+        logger.info("***** 开始训练 *****")
+        logger.info("  样本数是 = %d", len(train_dataset))
+        logger.info("  前向 batch size = %d", forward_batch_size)
+        logger.info("  训练的steps = %d", num_train_steps)
 
-        ########### 蒸馏 ###########
+        ########### 训练的配置 ###########
         train_config = TrainingConfig(
             gradient_accumulation_steps = args.gradient_accumulation_steps,
             ckpt_frequency = args.ckpt_frequency,
@@ -201,7 +201,7 @@ def main():
             output_dir = args.output_dir,
             device = args.device)
 
-        #执行监督训练，而不是蒸馏。它可以用于训练teacher模型。初始化模型
+        #初始化trainer，执行监督训练，而不是蒸馏。它可以把model_S模型训练成为teacher模型
         distiller = BasicTrainer(train_config = train_config,
                                  model = model_S,
                                  adaptor = BertForGLUESimpleAdaptorTraining)
@@ -210,9 +210,12 @@ def main():
             train_sampler = RandomSampler(train_dataset)
         else:
             raise NotImplementedError
+        #训练的dataloader
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.forward_batch_size,drop_last=True)
+        #执行callbakc函数，对eval数据集
         callback_func = partial(predict, eval_datasets=eval_datasets, args=args)
         with distiller:
+            #开始训练
             distiller.train(optimizer, scheduler=None, dataloader=train_dataloader,
                               num_epochs=args.num_train_epochs, callback=callback_func)
 

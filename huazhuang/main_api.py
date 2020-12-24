@@ -28,6 +28,10 @@ from pytorch_pretrained_bert.my_modeling import BertConfig
 from pytorch_pretrained_bert import BertTokenizer
 from modeling import BertSPCSimple, BertForGLUESimpleAdaptorTraining
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler, DistributedSampler
+from utils import divide_parameters
+from textbrewer import DistillationConfig, TrainingConfig, BasicTrainer
+from optimization import BERTAdam
+from functools import partial
 from tqdm import tqdm
 from utils_glue import InputExample, convert_examples_to_features
 import argparse
@@ -79,13 +83,61 @@ class TorchAsBertModel(object):
         # 判断使用的设备
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_gpu = torch.cuda.device_count() if torch.cuda.is_available() else 0
-        self.tokenizer, self.model = self.load_model()
         # 句子左右最大truncate序列长度
         self.left_max_seq_len = 15
         self.right_max_seq_len = 20
         self.aspect_max_seq_len = 30
 
-    def load_model(self):
+    def load_train_model(self):
+        """
+        初始化训练的模型
+        :return:
+        """
+        parser = argparse.ArgumentParser()
+        args = parser.parse_args()
+        args.output_encoded_layers = True
+        args.output_attention_layers = True
+        args.output_att_score = True
+        args.output_att_sum = True
+        self.learning_rate = 2e-05
+        #学习率 warmup的比例
+        self.warmup_proportion = 0.1
+        self.num_train_epochs = 2
+        #使用的学习率scheduler
+        self.schedule = 'slanted_triangular'
+        self.s_opt1 = 30.0
+        self.s_opt2 = 0.0
+        self.s_opt3 = 1.0
+        #训练多少epcoh保存一次模型
+        self.ckpt_frequency = 1
+        #模型和日志保存的位置
+        self.output_dir = "output_root_dir/train_api"
+        #梯度累积步数
+        self.gradient_accumulation_steps = 1
+        self.args = args
+        # 解析配置文件, 教师模型和student模型的vocab是不变的
+        self.vocab_file = "mac_bert_model/vocab.txt"
+        self.bert_config_file_S = "mac_bert_model/config.json"
+        self.tuned_checkpoint_S = "mac_bert_model/pytorch_model.bin"
+        self.max_seq_length = 70
+        # 预测的batch_size大小
+        self.train_batch_size = 64
+        # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
+        bert_config_S = BertConfig.from_json_file(self.bert_config_file_S)
+
+        # 加载tokenizer
+        tokenizer = BertTokenizer(vocab_file=self.vocab_file)
+
+        # 加载模型
+        model_S = BertSPCSimple(bert_config_S, num_labels=self.num_labels, args=self.args)
+        state_dict_S = torch.load(self.tuned_checkpoint_S, map_location=self.device)
+        model_S.load_state_dict(state_dict_S)
+        if self.verbose:
+            print("模型已加载")
+        self.tokenizer = tokenizer
+        self.model = model_S
+
+    def load_predict_model(self):
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
         args.output_encoded_layers = True
@@ -115,8 +167,8 @@ class TorchAsBertModel(object):
         model_S.load_state_dict(state_dict_S)
         if self.verbose:
             print("模型已加载")
-
-        return tokenizer, model_S
+        self.tokenizer = tokenizer
+        self.model =  model_S
 
     def truncate(self, input_text, max_len, trun_post='post'):
         """
@@ -155,6 +207,7 @@ class TorchAsBertModel(object):
         :param data: 是一个要处理的数据列表
         :return:
         """
+        self.load_predict_model()
         contents = []
         for one_data in data:
             content, aspect, aspect_start, aspect_end = one_data
@@ -180,11 +233,12 @@ class TorchAsBertModel(object):
         :param data: 是一个要处理的数据列表[(content,aspect),...,]
         :return:
         """
+        self.load_predict_model()
         eval_dataset = load_examples(data, self.max_seq_length, self.tokenizer, self.label_list)
         if self.verbose:
             print("评估数据集已加载")
 
-        res = self.do_predict(self.model, eval_dataset)
+        res = self.do_predict(eval_dataset)
         if self.verbose:
             print(f"预测的结果是: {res}, {[self.label_list[id] for id in res]}")
 
@@ -192,7 +246,7 @@ class TorchAsBertModel(object):
         result = [self.label_list[r] for r in res]
         return result
 
-    def do_predict(self, model, eval_dataset):
+    def do_predict(self, eval_dataset):
         # 任务名字
         results = []
         if self.verbose:
@@ -202,8 +256,8 @@ class TorchAsBertModel(object):
         # 评估样本
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=self.predict_batch_size)
-        model.eval()
-        model.to(self.device)
+        self.model.eval()
+        self.model.to(self.device)
         # 起始时间
         start_time = time.time()
         # 存储预测值
@@ -214,7 +268,7 @@ class TorchAsBertModel(object):
             input_mask = input_mask.to(self.device)
             segment_ids = segment_ids.to(self.device)
             with torch.no_grad():
-                logits = model(input_ids, input_mask, segment_ids)
+                logits = self.model(input_ids, input_mask, segment_ids)
             cpu_logits = logits.detach().cpu()
             for i in range(len(cpu_logits)):
                 pred_logits.append(cpu_logits[i].numpy())
@@ -234,15 +288,49 @@ class TorchAsBertModel(object):
 
     def do_train(self, data):
         """
-        训练模型
+        训练模型, 数据集分成2部分，训练集和验证集, 默认比例9:1
         :return:
         """
+        self.load_train_model()
         train_dataset = load_examples(data, self.max_seq_length, self.tokenizer, self.label_list)
         if self.verbose:
             print("训练数据集已加载,开始训练")
+        num_train_steps = int(len(train_dataset) / self.train_batch_size) * self.num_train_epochs
+        forward_batch_size = int(self.train_batch_size / self.gradient_accumulation_steps)
         # 开始训练
-        pass
+        params = list(self.model.named_parameters())
+        all_trainable_params = divide_parameters(params, lr=self.learning_rate)
+        # 优化器设置
+        optimizer = BERTAdam(all_trainable_params, lr=self.learning_rate,
+                             warmup=self.warmup_proportion, t_total=num_train_steps, schedule=self.schedule,
+                             s_opt1=self.s_opt1, s_opt2=self.s_opt2, s_opt3=self.s_opt3)
 
+        logger.info("***** 开始训练 *****")
+        logger.info("  样本数是 = %d", len(train_dataset))
+        logger.info("  前向 batch size = %d", forward_batch_size)
+        logger.info("  训练的steps = %d", num_train_steps)
+
+        ########### 训练的配置 ###########
+        train_config = TrainingConfig(
+            gradient_accumulation_steps = self.gradient_accumulation_steps,
+            ckpt_frequency = self.ckpt_frequency,
+            log_dir = self.output_dir,
+            output_dir = self.output_dir,
+            device = self.device)
+        #初始化trainer，执行监督训练，而不是蒸馏。它可以把model_S模型训练成为teacher模型
+        distiller = BasicTrainer(train_config = train_config,
+                                 model = self.model,
+                                 adaptor = BertForGLUESimpleAdaptorTraining)
+
+        train_sampler = RandomSampler(train_dataset)
+        #训练的dataloader
+        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=forward_batch_size,drop_last=True)
+        #执行callbakc函数，对eval数据集
+        callback_func = partial(self.do_predict, eval_datasets=eval_datasets)
+        with distiller:
+            #开始训练
+            distiller.train(optimizer, scheduler=None, dataloader=train_dataloader,
+                              num_epochs=self.num_train_epochs, callback=callback_func)
 
 @app.route("/api/predict", methods=['POST'])
 def predict():

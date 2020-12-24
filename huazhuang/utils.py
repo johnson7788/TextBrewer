@@ -77,7 +77,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False)
 
 def divide_parameters(named_parameters,lr=None):
     """
-    给不同的参数分配学习率是否衰减
+    给不同的模型参数分配学习率是否衰减
     :param named_parameters:
     :param lr:
     :return:
