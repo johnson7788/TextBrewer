@@ -22,6 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger("Main")
 
 import os, random, time
+import re
 import numpy as np
 import torch
 from pytorch_pretrained_bert.my_modeling import BertConfig
@@ -45,7 +46,7 @@ app = Flask(__name__)
 
 def load_examples(contents, max_seq_length, tokenizer, label_list):
     """
-    :param contents:  eg: [('苹果很好用', '苹果')]
+    :param contents:  eg: [('苹果很好用', '苹果')]  或者 [('苹果很好用', '苹果', '积极')]
     :param max_seq_length:
     :param tokenizer:  初始化后的tokenizer
     :param label_list:
@@ -194,51 +195,65 @@ class TorchAsBertModel(object):
         else:
             return input_text
 
-    def clean(self, text_left, aspect, text_right):
+    def do_truncate_data(self, data):
         """
-        截断数据
-        :param text_left:
-        :param aspect:
-        :param text_right:
-        :return:
+        对数据做truncate
+        :param data:针对不同类型的数据进行不同的截断
+        :return:返回列表，是截断后的文本，aspect
+        所以如果一个句子中有多个aspect关键字，那么就会产生多个截断的文本+关键字，组成的列表，会产生多个预测结果
         """
-        text_left = self.truncate(text_left, self.left_max_seq_len)
-        aspect = self.truncate(aspect, self.aspect_max_seq_len)
-        text_right = self.truncate(text_right, self.right_max_seq_len, trun_post="pre")
-
-        return text_left, aspect, text_right
-
-    def predict_batch_with_truncate(self, data):
-        """
-        batch_size数据处理, 会进行截断
-        :param data: 是一个要处理的数据列表
-        :return:
-        """
-        contents = []
-        for one_data in data:
-            content, aspect, aspect_start, aspect_end = one_data
+        def aspect_truncate(content, aspect,aspect_start,aspect_end):
+            """
+            截断函数
+            :param content:
+            :param aspect:
+            :param aspect_start:
+            :param aspect_end:
+            :return:
+            """
             text_left = content[:aspect_start]
             text_right = content[aspect_end:]
-            text_left, aspect, text_right = self.clean(text_left, aspect, text_right)
+            text_left = self.truncate(text_left, self.left_max_seq_len)
+            aspect = self.truncate(aspect, self.aspect_max_seq_len)
+            text_right = self.truncate(text_right, self.right_max_seq_len, trun_post="pre")
             new_content = text_left + aspect + text_right
-            contents.append((new_content, aspect))
+            return new_content
+        contents = []
+        #保存关键字的索引，[(start_idx, end_idx)...]
+        locations = []
+        for one_data in data:
+            if len(one_data) == 2:
+                #不带aspect关键字的位置信息，自己查找位置
+                content, aspect = one_data
+                iter = re.finditer(aspect, content)
+                for m in iter:
+                    aspect_start, aspect_end = m.span()
+                    new_content = aspect_truncate(content, aspect, aspect_start, aspect_end)
+                    contents.append((new_content, aspect))
+                    locations.append((aspect_start,aspect_end))
+            elif len(one_data) == 4:
+                # 不带label时，长度是4，
+                content, aspect, aspect_start, aspect_end = one_data
+                new_content = aspect_truncate(content, aspect, aspect_start,aspect_end)
+                contents.append((new_content, aspect))
+                locations.append((aspect_start, aspect_end))
+            elif len(one_data) == 5:
+                content, aspect, aspect_start, aspect_end, label = one_data
+                new_content = aspect_truncate(content, aspect, aspect_start, aspect_end)
+                contents.append((new_content, aspect, label))
+                locations.append((aspect_start, aspect_end))
+            else:
+                raise Exception(f"这条数据异常: {one_data},数据长度或者为2, 4，或者为5")
+        return contents, locations
 
-        eval_dataset = load_examples(contents, self.max_seq_length, self.predict_tokenizer, self.label_list)
-        if self.verbose:
-            print("评估数据集已加载")
-
-        predictids, probability = self.do_predict(model=self.predict_model, eval_dataset=eval_dataset)
-        if self.verbose:
-            print(f"预测的结果是: {predictids}, {[self.label_list[id] for id in predictids]}")
-
-        # TODO 输入为一条数据，返回也只返回一条结果即可以了
-        return predictids
-    def predict_batch(self, data):
+    def predict_batch(self, data, truncated=False):
         """
         batch_size数据处理
         :param data: 是一个要处理的数据列表[(content,aspect),...,]
         :return:, 返回格式是 [(predicted_label, predict_score),...]
         """
+        if truncated:
+            data, locations = self.do_truncate_data(data)
         eval_dataset = load_examples(data, self.max_seq_length, self.predict_tokenizer, self.label_list)
         if self.verbose:
             print("评估数据集已加载")
@@ -249,7 +264,7 @@ class TorchAsBertModel(object):
 
         #把id变成标签
         predict_labels = [self.label_list[r] for r in predictids]
-        results = list(zip(predict_labels,probability))
+        results = list(zip(predict_labels,probability,data,locations))
         return results
 
     def do_predict(self, model, eval_dataset, step=0):
@@ -301,11 +316,15 @@ class TorchAsBertModel(object):
                 f"--- 评估{len(eval_dataset)}条数据的总耗时是 {cost_time} seconds, 每条耗时 {cost_time / len(eval_dataset)} seconds ---")
         return predictids, probability
 
-    def do_train(self, data):
+    def do_train(self, data, truncated=False):
         """
         训练模型, 数据集分成2部分，训练集和验证集, 默认比例9:1
+        :param data: 输入的数据，注意如果做truncated，那么输入的数据为 [(content,aspect,start_idx, end_idx, label),...,]
+        :param truncated: 是否要截断，截断按照 self.left_max_seq_len, self.right_max_seq_len进行
         :return:
         """
+        if truncated:
+            data, locations = self.do_truncate_data(data)
         train_data_len = int(len(data) * 0.9)
         train_data = data[:train_data_len]
         eval_data = data[train_data_len:]
@@ -368,18 +387,19 @@ def predict():
 
 
 @app.route("/api/predict_truncate", methods=['POST'])
-def predict():
+def predict_truncate():
     """
     接收POST请求，获取data参数, data信息包含aspect关键在在句子中的位置信息，方便我们截取，我们截取aspect关键字的前后一定的字符作为输入
     例如关键字前后的25个字作为sentenceA，aspect关键字作为sentenceB，输入模型
     Args:
         test_data: 需要预测的数据，是一个文字列表, [(content,aspect,start_idx, end_idx),...,]
+        如果传过来的数据没有索引，那么需要自己去查找索引 [(content,aspect),...,]
     Returns: 返回格式是 [(predicted_label, predict_score),...]
     """
     jsonres = request.get_json()
     test_data = jsonres.get('data', None)
     # model = TorchAsBertModel()
-    results = model.predict_batch_with_truncate(test_data)
+    results = model.predict_batch(test_data, truncated=True)
     logger.info(f"收到的数据是:{test_data}")
     logger.info(f"预测的结果是:{results}")
     return jsonify(results)
@@ -401,7 +421,7 @@ def train():
 
 
 @app.route("/api/train_truncate", methods=['POST'])
-def train():
+def train_truncate():
     """
     接收data参数，data信息包含aspect关键在在句子中的位置信息，方便我们截取，我们截取aspect关键字的前后一定的字符作为输入
     例如关键字前后的25个字作为sentenceA，aspect关键字作为sentenceB，输入模型
@@ -413,7 +433,7 @@ def train():
     data = jsonres.get('data', None)
     logger.info(f"收到的数据是:{data}, 进行训练")
     # model = TorchAsBertModel()
-    results = model.do_train_with_truncate(data)
+    results = model.do_train(data, truncated=True)
     return jsonify(results)
 
 
