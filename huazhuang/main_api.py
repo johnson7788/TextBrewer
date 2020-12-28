@@ -89,8 +89,8 @@ class TorchAsBertModel(object):
         # 预测的batch_size大小
         self.predict_batch_size = 64
         # 句子左右最大truncate序列长度
-        self.left_max_seq_len = 15
-        self.right_max_seq_len = 20
+        self.left_max_seq_len = 25
+        self.right_max_seq_len = 25
         self.aspect_max_seq_len = 30
         self.load_predict_model()
         self.load_train_model()
@@ -208,9 +208,9 @@ class TorchAsBertModel(object):
 
         return text_left, aspect, text_right
 
-    def predict_batch(self, data):
+    def predict_batch_with_truncate(self, data):
         """
-        batch_size数据处理
+        batch_size数据处理, 会进行截断
         :param data: 是一个要处理的数据列表
         :return:
         """
@@ -233,7 +233,7 @@ class TorchAsBertModel(object):
 
         # TODO 输入为一条数据，返回也只返回一条结果即可以了
         return predictids
-    def predict_batch_without_turncate(self, data):
+    def predict_batch(self, data):
         """
         batch_size数据处理
         :param data: 是一个要处理的数据列表[(content,aspect),...,]
@@ -361,7 +361,25 @@ def predict():
     jsonres = request.get_json()
     test_data = jsonres.get('data', None)
     # model = TorchAsBertModel()
-    results = model.predict_batch_without_turncate(test_data)
+    results = model.predict_batch(test_data)
+    logger.info(f"收到的数据是:{test_data}")
+    logger.info(f"预测的结果是:{results}")
+    return jsonify(results)
+
+
+@app.route("/api/predict_truncate", methods=['POST'])
+def predict():
+    """
+    接收POST请求，获取data参数, data信息包含aspect关键在在句子中的位置信息，方便我们截取，我们截取aspect关键字的前后一定的字符作为输入
+    例如关键字前后的25个字作为sentenceA，aspect关键字作为sentenceB，输入模型
+    Args:
+        test_data: 需要预测的数据，是一个文字列表, [(content,aspect,start_idx, end_idx),...,]
+    Returns: 返回格式是 [(predicted_label, predict_score),...]
+    """
+    jsonres = request.get_json()
+    test_data = jsonres.get('data', None)
+    # model = TorchAsBertModel()
+    results = model.predict_batch_with_truncate(test_data)
     logger.info(f"收到的数据是:{test_data}")
     logger.info(f"预测的结果是:{results}")
     return jsonify(results)
@@ -380,6 +398,24 @@ def train():
     # model = TorchAsBertModel()
     results = model.do_train(data)
     return jsonify(results)
+
+
+@app.route("/api/train_truncate", methods=['POST'])
+def train():
+    """
+    接收data参数，data信息包含aspect关键在在句子中的位置信息，方便我们截取，我们截取aspect关键字的前后一定的字符作为输入
+    例如关键字前后的25个字作为sentenceA，aspect关键字作为sentenceB，输入模型
+    Args:
+        data: 训练的数据，是一个文字列表, [(content,aspect,start_idx, end_idx, label),...,]
+    Returns:
+    """
+    jsonres = request.get_json()
+    data = jsonres.get('data', None)
+    logger.info(f"收到的数据是:{data}, 进行训练")
+    # model = TorchAsBertModel()
+    results = model.do_train_with_truncate(data)
+    return jsonify(results)
+
 
 
 if __name__ == "__main__":
