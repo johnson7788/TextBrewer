@@ -23,6 +23,7 @@ logger = logging.getLogger("Main")
 
 import os, random, time
 import re
+import glob
 import numpy as np
 import torch
 from pytorch_pretrained_bert.my_modeling import BertConfig
@@ -144,9 +145,9 @@ class TorchAsBertModel(object):
         assert len(missing_keys) == 0
         self.train_tokenizer = tokenizer
         self.train_model = model_S
-        logger.info("训练模型加载完成")
+        logger.info(f"训练模型{self.tuned_checkpoint_S}加载完成")
 
-    def load_predict_model(self):
+    def load_predict_model(self, model_file="trained_teacher_model/gs3024.pkl"):
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
         args.output_encoded_layers = True
@@ -160,7 +161,7 @@ class TorchAsBertModel(object):
         # student config:  config/chinese_bert_config_L4t.json
         # distil student model:  distil_model/gs8316.pkl
         self.bert_config_file_S = "bert_model/config.json"
-        self.tuned_checkpoint_S = "trained_teacher_model/gs3024.pkl"
+        self.tuned_checkpoint_S = model_file
         self.max_seq_length = 70
         # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
         bert_config_S = BertConfig.from_json_file(self.bert_config_file_S)
@@ -176,7 +177,7 @@ class TorchAsBertModel(object):
             print("模型已加载")
         self.predict_tokenizer = tokenizer
         self.predict_model =  model_S
-        logger.info("预测模型加载完成")
+        logger.info(f"预测模型{model_file}加载完成")
 
     def truncate(self, input_text, max_len, trun_post='post'):
         """
@@ -246,12 +247,17 @@ class TorchAsBertModel(object):
                 raise Exception(f"这条数据异常: {one_data},数据长度或者为2, 4，或者为5")
         return contents, locations
 
-    def predict_batch(self, data, truncated=False):
+    def predict_batch(self, data, truncated=False, model_file=None):
         """
         batch_size数据处理
         :param data: 是一个要处理的数据列表[(content,aspect),...,]
+        :param truncated: 是否要截断数据
+        :param model_file: 模型文件
         :return:, 返回格式是 [(predicted_label, predict_score),...]
         """
+        #如果为None，就不改变加载的模型，否则就改变加载的模型
+        if model_file:
+            self.load_predict_model(model_file=model_file)
         if truncated:
             data, locations = self.do_truncate_data(data)
         eval_dataset = load_examples(data, self.max_seq_length, self.predict_tokenizer, self.label_list)
@@ -403,6 +409,28 @@ def predict_truncate():
     logger.info(f"收到的数据是:{test_data}")
     logger.info(f"预测的结果是:{results}")
     return jsonify(results)
+
+@app.route("/api/predict_truncate_model", methods=['POST'])
+def predict_truncate_model():
+    """
+    使用self.output_dir 下的最新的模型的文件
+    接收POST请求，获取data参数, data信息包含aspect关键在在句子中的位置信息，方便我们截取，我们截取aspect关键字的前后一定的字符作为输入
+    例如关键字前后的25个字作为sentenceA，aspect关键字作为sentenceB，输入模型
+    Args:
+        test_data: 需要预测的数据，是一个文字列表, [(content,aspect,start_idx, end_idx),...,]
+        如果传过来的数据没有索引，那么需要自己去查找索引 [(content,aspect),...,]
+    Returns: 返回格式是 [(predicted_label, predict_score),...]
+    """
+    jsonres = request.get_json()
+    test_data = jsonres.get('data', None)
+    # model = TorchAsBertModel()
+    list_of_files = glob.glob(os.path.join(model.output_dir, "*.pkl"))
+    latest_model_file = max(list_of_files, key=os.path.getctime)
+    results = model.predict_batch(test_data, truncated=True, model_file=latest_model_file)
+    logger.info(f"收到的数据是:{test_data}")
+    logger.info(f"预测的结果是:{results}")
+    return jsonify(results)
+
 
 @app.route("/api/train", methods=['POST'])
 def train():
