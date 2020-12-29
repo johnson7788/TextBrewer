@@ -24,14 +24,14 @@ class ElectraForTokenClassification(ElectraPreTrainedModel):
     def forward(self, input_ids, attention_mask=None,labels=None, token_type_ids=None,
         position_ids=None, head_mask=None, inputs_embeds=None):
         """
-        前向过程
-        :param input_ids:
-        :param attention_mask:
-        :param labels:
-        :param token_type_ids:
-        :param position_ids:
-        :param head_mask:
-        :param inputs_embeds:
+        一个batch_size的前向过程
+        :param input_ids: batch_size大小的tokens id,  最大序列长度, shape: torch.Size([12, 160]), [batch_size, max_seq_len]
+        :param attention_mask: 对应的attention mask, torch.Size([12, 160])
+        :param labels: torch.Size([12, 160])， 因为是token级别预测，预测每个token的类别
+        :param token_type_ids: None
+        :param position_ids: None
+        :param head_mask: None
+        :param inputs_embeds: None
         :return:
         """
         discriminator_hidden_states = self.electra(
