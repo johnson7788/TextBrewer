@@ -10,6 +10,10 @@ from transformers.modeling_electra import ElectraPreTrainedModel
 
 class ElectraForTokenClassification(ElectraPreTrainedModel):
     def __init__(self, config):
+        """
+        Token分类器
+        :param config: 初始化的ElectraConfig
+        """
         super().__init__(config)
 
         self.electra = ElectraModel(config)
@@ -19,6 +23,17 @@ class ElectraForTokenClassification(ElectraPreTrainedModel):
 
     def forward(self, input_ids, attention_mask=None,labels=None, token_type_ids=None,
         position_ids=None, head_mask=None, inputs_embeds=None):
+        """
+        前向过程
+        :param input_ids:
+        :param attention_mask:
+        :param labels:
+        :param token_type_ids:
+        :param position_ids:
+        :param head_mask:
+        :param inputs_embeds:
+        :return:
+        """
         discriminator_hidden_states = self.electra(
             input_ids, attention_mask, token_type_ids, position_ids, head_mask, inputs_embeds
         )

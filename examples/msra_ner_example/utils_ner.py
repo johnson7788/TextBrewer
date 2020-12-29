@@ -54,6 +54,12 @@ class Featues:
         return s
 
 def read_examples(input_file):
+    """
+    返回 类似tokens: 当希望工程救助的百万儿童成长起来，科教兴国蔚然成风时，今天有收藏价值的书你没买，明日就叫你悔不当初！labels: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+    :param input_file: 文件
+    :return:[Examples{labels_ids:[], tokens:[]}]
+    """
     examples = []
     tokens = []
     label_ids = []
@@ -74,14 +80,25 @@ def read_examples(input_file):
             tokens.append(token)
             label_ids.append(label2id_dict[label])
         if len(tokens) > 0:
+            #tokens必须大于0
             examples.append(Examples(tokens, label_ids))
-    print ("Num errors: ", errors)
+    print("过滤掉的一些错误样本数:", errors)
     return examples
 
 def convert_example_to_features(input_file, tokenizer, max_seq_length,
                                 cls_token='[CLS]', sep_token='[SEP]', pad_token_id=0):
-    features = []
+    """
 
+    :param input_file:  #输入文件 'data/msra_train_bio.txt'
+    :param tokenizer: 初始化的tokenizer
+    :param max_seq_length:
+    :param cls_token:
+    :param sep_token:
+    :param pad_token_id:
+    :return:
+    """
+    features = []
+    #读取样本
     examples = read_examples(input_file)
 
     #convert token to ids
@@ -106,19 +123,32 @@ def convert_example_to_features(input_file, tokenizer, max_seq_length,
     return examples, features
 
 def read_features(input_file,  max_seq_length=160, tokenizer=None, cls_token='[CLS]', sep_token='[SEP]', pad_token_id=0):
+    """
+
+    :param input_file: 读取文件  'data/msra_train_bio.txt'
+    :param max_seq_length: 最大序列长度
+    :param tokenizer:  初始化后的tokenizer
+    :param cls_token: 默认CLS的token表示
+    :param sep_token:
+    :param pad_token_id:
+    :return:
+    """
+    # cache文件名字
     cached_features_file = input_file +f'.cached_feat_{max_seq_length}'
     if os.path.exists(cached_features_file):
+        #如果cache存在，自动加载
         with open(cached_features_file,'rb') as f:
             examples, features = pickle.load(f)
     else:
+        #不存在cache，生成cache
         examples, features = convert_example_to_features(input_file,tokenizer,max_seq_length,cls_token,sep_token,pad_token_id)
         with open(cached_features_file, 'wb') as f:
             pickle.dump([examples, features],f)
-
+    # 转换成Tensor
     all_token_ids = torch.tensor([f.token_ids for f in features],dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features],dtype=torch.long)
     all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
-
+    #转换成TensorDataset格式
     dataset = TensorDataset(all_token_ids,all_input_mask,all_label_ids)
 
     return examples, dataset

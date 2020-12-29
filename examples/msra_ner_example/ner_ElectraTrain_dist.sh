@@ -1,6 +1,6 @@
-ELECTRA_DIR_BASE=/path/to/Chinese-electra-base
-OUTPUT_DIR=/path/to/output_dir
-DATA_DIR=/path/to/MSRA_NER_data
+ELECTRA_DIR_BASE=electra_model
+OUTPUT_DIR=output_dir
+DATA_DIR=data
 
 mkdir -p $OUTPUT_DIR
 

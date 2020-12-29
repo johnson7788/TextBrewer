@@ -73,6 +73,15 @@ def ensemble(models, eval_examples, eval_dataset, step, args):
     write_predictions(eval_examples, all_labels, all_predictions, output_prediction_file)
 
 def ddp_predict(model, eval_examples, eval_dataset, step, args):
+    """
+
+    :param model:
+    :param eval_examples:
+    :param eval_dataset:
+    :param step:
+    :param args:
+    :return:
+    """
     if args.local_rank == -1 or torch.distributed.get_rank() == 0:
         logger.info(f"Do predict in local rank : {args.local_rank}")
         predict(model, eval_examples, eval_dataset, step, args)
