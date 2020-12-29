@@ -28,7 +28,7 @@
 
 # 分布式训练
 ```buildoutcfg
-python -m torch.distributed.launch    #分布式运行
+python -m torch.distributed.launch    # 分布式运行
 --nproc_per_node=2   # 2个节点上运行  
 main.train.dist.py 
 --vocab_file electra_model/vocab.txt 
