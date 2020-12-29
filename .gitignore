@@ -32,3 +32,4 @@ huazhuang/mac_bert_model/
 examples/msra_ner_example/electra_model/
 examples/msra_ner_example/output_dir/
 examples/msra_ner_example/data/*cache*
+huazhuang/electra_model/
