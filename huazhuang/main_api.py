@@ -81,7 +81,7 @@ def load_examples(contents, max_seq_length, tokenizer, label_list):
 class TorchAsBertModel(object):
     def __init__(self, verbose=0):
         self.verbose = verbose
-        self.label_list = ["积极", "消极", "中性"]
+        self.label_list = ["中性","消极", "积极"]
         self.num_labels = len(self.label_list)
         # 判断使用的设备
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

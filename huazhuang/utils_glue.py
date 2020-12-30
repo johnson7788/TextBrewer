@@ -230,7 +230,7 @@ class NewcosProcessor(MnliProcessor):
             set_type = "test")
     def get_labels(self):
         """cosmetics的labels"""
-        return ["积极", "消极", "中性"]
+        return ["中性","消极","积极"]
     def _create_examples(self, lines, set_type):
         """处理label-studio收到的数据"""
         examples = []
