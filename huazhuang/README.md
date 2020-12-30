@@ -4,16 +4,16 @@
 # 使用macbert模型
 utils/download_mac_bert.py 下载macbert模型,hfl/chinese-macbert-base
 
-# 步骤1
+## 步骤1
 * run_train.sh : 训练教师模型(bert-base-cased)
 python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S mac_bert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/mnli_base_lr2e3_bs24_teacher --gradient_accumulation_steps 1 --task_name cosmetics --output_att_sum false --output_encoded_layers false --output_attention_layers false
 模型保存为gs{global_step}.pkl 格式
 
-# 步骤2
+## 步骤2
 * run_distill_T4tiny.sh : 蒸馏教师模型到T4Tiny
 python main.distill.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type none --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 40 --learning_rate 10e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/t8_TbaseST4tiny_AllSmmdH1_lr10e40_bs24 --gradient_accumulation_steps 1 --temperature 8 --task_name cosmetics --output_att_sum false --output_encoded_layers true --output_attention_layers false --matches L4t_hidden_mse L4_hidden_smmd
 
-# 步骤3
+## 步骤3
 * run_distill_T4tiny_eval.sh 评估模型  
 python main.distill.py  --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/t8_TbaseST4tiny_eval  --temperature 8 --task_name cosmetics
 
@@ -73,7 +73,22 @@ python main.distill.py  --vocab_file mac_bert_model/vocab.txt --data_dir data_ro
 # 使用ELECTRA模型
 utils/download_electra.py 下载macbert模型, hfl/chinese-electra-180g-base-discriminator
 
-# 训练步骤1
+## 训练步骤1
 * run_train.sh : 训练教师模型, 使用transformers的ElectraForSequenceClassification模型
 python main.trainer.py --vocab_file electra_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T none --bert_config_file_S electra_model/config.json --init_checkpoint_S electra_model/pytorch_model.bin --do_lower_case --do_train  --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/electra_base_output --gradient_accumulation_steps 1 --task_name cosmetics --output_att_sum false --output_encoded_layers false --output_attention_layers false
 模型保存为gs{global_step}.pkl 格式
+
+
+# 使用newcos数据集训练
+## 步骤1
+* run_train.sh : 训练教师模型(bert-base-cased)
+python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S mac_bert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name cosmetics --output_att_sum false --output_encoded_layers false --output_attention_layers false
+模型保存为gs{global_step}.pkl 格式
+
+## 步骤2
+* run_distill_T4tiny.sh : 蒸馏教师模型到T4Tiny
+python main.distill.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type none --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 40 --learning_rate 10e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/t8_TbaseST4tiny_AllSmmdH1_lr10e40_bs24 --gradient_accumulation_steps 1 --temperature 8 --task_name cosmetics --output_att_sum false --output_encoded_layers true --output_attention_layers false --matches L4t_hidden_mse L4_hidden_smmd
+
+## 步骤3
+* run_distill_T4tiny_eval.sh 评估模型  
+python main.distill.py  --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/t8_TbaseST4tiny_eval  --temperature 8 --task_name cosmetics

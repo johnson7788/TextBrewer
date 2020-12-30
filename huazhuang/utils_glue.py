@@ -19,6 +19,7 @@ import csv
 import logging
 import os
 import sys
+import json
 from io import open
 
 from scipy.stats import pearsonr, spearmanr
@@ -82,6 +83,16 @@ class DataProcessor(object):
             for line in reader:
                 lines.append(line)
             return lines
+    @classmethod
+    def _read_json(cls, input_file):
+        """
+        读取json文件
+        :param input_file:
+        :return:
+        """
+        with open(input_file, 'r') as f:
+            lines = json.load(f)
+        return lines
 
 
 class MrpcProcessor(DataProcessor):
@@ -192,6 +203,42 @@ class CosmeticsProcessor(MnliProcessor):
             guid = "%s-%s" % (set_type, i)
             text_a = text_left + aspect + text_right
             text_b = aspect
+            # label从 【-1，0，1】 --> [0,1,2]
+            label_id = int(lines[i+2][0])+ 1
+            # label_id --> NEG, NEU, POS
+            label = labels[label_id]
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
+class NewcosProcessor(MnliProcessor):
+    """处理Newcos数据"""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            lines = self._read_json(os.path.join(data_dir, "train.json")), set_type="train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            lines = self._read_json(os.path.join(data_dir, "dev.json")),
+            set_type = "dev")
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            lines = self._read_json(os.path.join(data_dir, "test.json")),
+            set_type = "test")
+    def get_labels(self):
+        """cosmetics的labels"""
+        return ["积极", "消极", "中性"]
+    def _create_examples(self, lines, set_type):
+        """处理label-studio收到的数据"""
+        examples = []
+        labels = self.get_labels()
+        for i in range(0, len(lines)):
+            guid = 0
+            text_a = 0
+            text_b = 0
             # label从 【-1，0，1】 --> [0,1,2]
             label_id = int(lines[i+2][0])+ 1
             # label_id --> NEG, NEU, POS
@@ -609,6 +656,8 @@ def compute_metrics(task_name, preds, labels):
         return {"acc": simple_accuracy(preds, labels)}
     elif task_name == "cosmetics":
         return {"acc": simple_accuracy(preds, labels)}
+    elif task_name == "newcos":
+        return {"acc": simple_accuracy(preds, labels)}
     elif task_name == "mnli-mm":
         return {"mm-acc": simple_accuracy(preds, labels)}
     elif task_name == "qnli":
@@ -624,6 +673,7 @@ processors = {
     "cola": ColaProcessor,
     "mnli": MnliProcessor,
     "cosmetics": CosmeticsProcessor,
+    "newcos": NewcosProcessor,
     "mnli-mm": MnliMismatchedProcessor,
     "mrpc": MrpcProcessor,
     "sst-2": Sst2Processor,
@@ -638,6 +688,7 @@ output_modes = {
     "cola": "classification",
     "mnli": "classification",
     "cosmetics": "classification",
+    "newcos": "classification",
     "mnli-mm": "classification",
     "mrpc": "classification",
     "sst-2": "classification",
@@ -652,6 +703,7 @@ GLUE_TASKS_NUM_LABELS = {
     "cola": 2,
     "mnli": 3,
     "cosmetics": 3,
+    "newcos": 3,
     "mrpc": 2,
     "sst-2": 2,
     "sts-b": 1,
