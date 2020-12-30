@@ -6,7 +6,7 @@ utils/download_mac_bert.py 下载macbert模型,hfl/chinese-macbert-base
 
 # 步骤1
 * run_train.sh : 训练教师模型(bert-base-cased)
-python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S mac_bert_model/pytorch_model.bin --do_lower_case --do_train  --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/mnli_base_lr2e3_bs24_teacher --gradient_accumulation_steps 1 --task_name cosmetics --output_att_sum false --output_encoded_layers false --output_attention_layers false
+python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S mac_bert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/mnli_base_lr2e3_bs24_teacher --gradient_accumulation_steps 1 --task_name cosmetics --output_att_sum false --output_encoded_layers false --output_attention_layers false
 模型保存为gs{global_step}.pkl 格式
 
 # 步骤2
