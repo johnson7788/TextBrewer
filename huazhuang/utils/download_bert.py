@@ -6,7 +6,7 @@ model.save_pretrained('bert_model')
 tokenizer.save_pretrained('bert_model')
 os.remove("bert_model/special_tokens_map.json")
 os.remove("bert_model/tokenizer_config.json")
-
+os.system("mv bert_model ../")
 # tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 # model = AutoModelForMaskedLM.from_pretrained("bert-base-uncased")
 # model.save_pretrained('bert_model_uncased')
