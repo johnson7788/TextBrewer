@@ -156,13 +156,14 @@ def split_data_dev(data, save_path, train_rate=0.8, dev_rate=0.2, weibodata=None
     dev_file = os.path.join(save_path, 'dev.json')
     train_data = data[:train_num]
     dev_data = data[train_num:]
-    if weibo_data:
-        train_data.extend(weibo_data)
+    if weibodata:
+        train_data.extend(weibodata)
     with open(train_file, 'w', encoding='utf-8') as f:
         json.dump(train_data, f)
     with open(dev_file, 'w', encoding='utf-8') as f:
         json.dump(dev_data, f)
     print(f"保存成功，训练集{len(train_data)},开发集{len(dev_data)}")
+    return train_data, dev_data
 
 
 def format_data(data):
@@ -273,6 +274,8 @@ def colect_weibo(save_file="../data_root_dir/cosmetics/all.txt", filter_english_
                     continue
             sScore = aspect["sScore"]
             label = id2class[sScore]
+            if label not in list(id2class.values()):
+                print(f"异常样本: {text}: {keyword}")
             start = aspect["start"]
             end = aspect["end"]
             # 验证一下单词的位置是否在newcontent中位置对应
@@ -284,7 +287,29 @@ def colect_weibo(save_file="../data_root_dir/cosmetics/all.txt", filter_english_
     print(f"总数据量是{len(data)}")
     return data
 
-
+def valid_data(data):
+    """
+    验证数据
+    :param data:
+    :return:
+    """
+    labels = ['积极','消极','中性']
+    length = len(data[0])
+    for idx, d in enumerate(data):
+        print(f"检查第{idx}条数据")
+        if length == 5:
+            content, aspect, aspect_start, aspect_end, label = d
+        elif length == 3:
+            content, aspect, label = d
+        if label not in labels:
+            print(f"数据的label不对: {label}")
+        if len(label) == 0:
+            print("数据的label长度为0")
+        if len(content) == 0:
+            print("数据的长度为0")
+        if len(aspect) == 0:
+            print("数据的aspect长度为0")
+    print(f"数据校验成功")
 
 if __name__ == '__main__':
     weibo_data = colect_weibo(filter_english_keyword=True)
@@ -292,4 +317,4 @@ if __name__ == '__main__':
     data = collect_json(dirpath="/opt/lavector")
     data = format_data(data)
     truncate_data, locations = do_truncate_data(data)
-    split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
+    train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)

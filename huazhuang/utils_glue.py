@@ -568,6 +568,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
         #仅当label不是None的时候才做此操作,否则，全部给-100，占位而已，因为预测会用到
         if example.label:
             if output_mode == "classification":
+                # print(example.text_a, example.text_b, example.guid, example.label)
                 label_id = label_map[example.label]
             elif output_mode == "regression":
                 label_id = float(example.label)
