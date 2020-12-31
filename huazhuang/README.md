@@ -94,8 +94,42 @@ python main.distill.py --vocab_file mac_bert_model/vocab.txt --data_dir data_roo
 * run_distill_T4tiny_eval.sh 评估模型  
 python main.distill.py  --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/t8_TbaseST4tiny_eval  --temperature 8 --task_name newcos
 
-## 对比以前的bert的teacher模型
-python main.trainer.py --vocab_file bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S bert_model/config.json --init_checkpoint_S trained_teacher_model/gs3024.pkl --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
+## 评估teacher模型 macbert, seq_length 75, 5000step, 22040条数据
+python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S trained_teacher_model/macbert_teacher_max75len_5000.pkl --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
 
-## 对比以前的bert的蒸馏模型
+## 对比以前的bert的teacher模型, 使用newcos 7000条数据集预测
+python main.trainer.py --vocab_file bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S bert_model/config.json --init_checkpoint_S trained_teacher_model/gs3024.pkl --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
+2020/12/31 11:41:19 - INFO - Main -  device cuda n_gpu 1 distributed training False
+2020/12/31 11:41:19 - INFO - utils -  从缓存加载features data_root_dir/newcos/cached_dev_70_newcos
+2020/12/31 11:41:19 - INFO - Main -  预测数据集已加载
+2020/12/31 11:41:21 - INFO - Main -  Model loaded
+2020/12/31 11:41:23 - INFO - Main -  Predicting...
+2020/12/31 11:41:23 - INFO - Main -  ***** Running predictions *****
+2020/12/31 11:41:23 - INFO - Main -   task name = newcos
+2020/12/31 11:41:23 - INFO - Main -    Num  examples = 7162
+2020/12/31 11:41:23 - INFO - Main -    Batch size = 8
+Evaluating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 896/896 [00:29<00:00, 30.09it/s]
+2020/12/31 11:41:53 - INFO - Main -  task:,newcos
+2020/12/31 11:41:53 - INFO - Main -  result: {'acc': 0.7187936330633902}
+2020/12/31 11:41:53 - INFO - Main -  ***** Eval results 0 task newcos *****
+2020/12/31 11:41:53 - INFO - Main -  acc = 0.7187936330633902
+{'acc': 0.7187936330633902}
+
+## 对比以前的bert的蒸馏模型,使用newcos 7000条数据集预测
 python main.distill.py  --vocab_file bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/bert_distial  --temperature 8 --task_name newcos
+2020/12/31 11:42:17 - INFO - Main -  device cuda n_gpu 1 distributed training False
+2020/12/31 11:42:18 - INFO - utils -  从缓存加载features data_root_dir/newcos/cached_dev_70_newcos
+2020/12/31 11:42:18 - INFO - Main -  数据集加载成功
+2020/12/31 11:42:20 - INFO - Main -  Model loaded
+2020/12/31 11:42:22 - INFO - Main -  Predicting...
+2020/12/31 11:42:22 - INFO - Main -  ***** Running predictions *****
+2020/12/31 11:42:22 - INFO - Main -   task name = newcos
+2020/12/31 11:42:22 - INFO - Main -    Num  examples = 7162
+2020/12/31 11:42:22 - INFO - Main -    Batch size = 8
+Evaluating: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 896/896 [00:04<00:00, 207.28it/s]
+2020/12/31 11:42:27 - INFO - Main -  task:,newcos
+2020/12/31 11:42:27 - INFO - Main -  result: {'acc': 0.6843060597598436}
+2020/12/31 11:42:27 - INFO - Main -  --- 评估7162条数据的总耗时是 4.3433144092559814 seconds, 每条耗时 0.0006064387614152446 seconds ---
+2020/12/31 11:42:27 - INFO - Main -  ***** Eval results 0 task newcos *****
+2020/12/31 11:42:27 - INFO - Main -  acc = 0.6843060597598436
+{'acc': 0.6843060597598436}

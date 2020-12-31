@@ -6,6 +6,8 @@ logging.basicConfig(
     )
 logger = logging.getLogger("Main")
 
+import json
+import scipy
 import os,random
 import numpy as np
 import torch
@@ -50,6 +52,7 @@ def predict(model,eval_datasets,step,args):
     eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
     eval_output_dir = args.output_dir
     results = {}
+    #这里我只用一个task，一个datasets
     for eval_task,eval_dataset in zip(eval_task_names, eval_datasets):
         if not os.path.exists(eval_output_dir) and args.local_rank in [-1, 0]:
             os.makedirs(eval_output_dir)
@@ -79,6 +82,11 @@ def predict(model,eval_datasets,step,args):
         pred_logits = np.array(pred_logits)
         label_ids   = np.array(label_ids)
 
+        #获取最大概率的可能性，即分数
+        pred_logits_softmax = scipy.special.softmax(pred_logits, axis=1)
+        probability = np.max(pred_logits_softmax, axis=1)
+        probability = probability.tolist()
+
         if args.output_mode == "classification":
             preds = np.argmax(pred_logits, axis=1)
         else: # args.output_mode == "regression":
@@ -87,6 +95,11 @@ def predict(model,eval_datasets,step,args):
         logger.info(f"task:,{eval_task}")
         logger.info(f"result: {result}")
         results.update(result)
+    #把结果json形式保存出来
+    output_json = os.path.join(eval_output_dir, "eval_results-%s.json" % eval_task)
+    output_json_data = [(pred, prob) for prob, pred in zip(probability, preds.tolist())]
+    with open(output_json, 'w', encoding='utf-8') as f:
+        json.dump(output_json_data, f)
 
     output_eval_file = os.path.join(eval_output_dir, "eval_results-%s.txt" % eval_task)
     with open(output_eval_file, "a") as writer:
@@ -221,7 +234,7 @@ def main():
 
     if not args.do_train and args.do_predict:
         res = predict(model_S,eval_datasets,step=0,args=args)
-        print (res)
+        print(res)
 
 if __name__ == "__main__":
     main()

@@ -314,7 +314,7 @@ def valid_data(data):
 
 def get_all_and_weibo_75():
     """
-    25+25+25
+    25+25+25, 最高准确率79%
     最大75个字的长度的文本
     :return:
     """
@@ -325,9 +325,22 @@ def get_all_and_weibo_75():
     truncate_data, locations = do_truncate_data(data)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
 
+def get_all_and_weibo_75_mini():
+    """
+    mini数据集, 共200条数据
+    25+25+25, 最高准确率79%
+    最大75个字的长度的文本
+    :return:
+    """
+    data = collect_json(dirpath="/opt/lavector")
+    data = format_data(data)
+    truncate_data, locations = do_truncate_data(data)
+    train_data, dev_data = split_data_dev(data=truncate_data[:200], save_path="../data_root_dir/newcos")
+
+
 def get_all_and_weibo_45():
     """
-    最大15+15+15个字的长度的文本
+    最大15+15+15个字的长度的文本,78%
     :return:
     """
     weibo_data = colect_weibo(filter_english_keyword=True)
@@ -337,6 +350,23 @@ def get_all_and_weibo_45():
     truncate_data, locations = do_truncate_data(data,left_max_seq_len=15, aspect_max_seq_len=15, right_max_seq_len=15)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
 
+def get_all_and_weibo_105():
+    """
+    40+40+25, 最高准确率
+     acc = 0.7807545106615636
+    step: 2006 ****
+     acc = 0.7818480043739748
+    最大75个字的长度的文本
+    :return:
+    """
+    weibo_data = colect_weibo(filter_english_keyword=True)
+    weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data,left_max_seq_len=40, aspect_max_seq_len=25, right_max_seq_len=40)
+    data = collect_json(dirpath="/opt/lavector")
+    data = format_data(data)
+    truncate_data, locations = do_truncate_data(data,left_max_seq_len=40, aspect_max_seq_len=25, right_max_seq_len=40)
+    train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
+
 
 if __name__ == '__main__':
-    get_all_and_weibo_45()
+    # get_all_and_weibo_105()
+    get_all_and_weibo_75_mini()
