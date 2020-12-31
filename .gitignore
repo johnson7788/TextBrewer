@@ -34,3 +34,4 @@ examples/msra_ner_example/output_dir/
 examples/msra_ner_example/data/*cache*
 huazhuang/electra_model/
 huazhuang/data_root_dir/newcos/
+*.gz

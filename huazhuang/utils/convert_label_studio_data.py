@@ -107,13 +107,14 @@ def do_truncate_data(data, left_max_seq_len=25, aspect_max_seq_len=25, right_max
     print(f"截断的参数left_max_seq_len: {left_max_seq_len}, aspect_max_seq_len: {aspect_max_seq_len}, right_max_seq_len:{right_max_seq_len}。截断后的数据总量是{len(contents)}")
     return contents, locations
 
-def split_data(data, save_path, train_rate=0.9, test_rate=0.05, dev_rate=0.05):
+def split_data(data, save_path, train_rate=0.9, test_rate=0.05, dev_rate=0.05, weibodata=None):
     """
     保存为json文件，按比例保存
     train.json
     test.json
     dev.json
     :param data: data 列表,
+    :param weibodata: 如果weibodata存在，只作为训练集使用
     :return:
     """
     random.seed(30)
@@ -127,6 +128,8 @@ def split_data(data, save_path, train_rate=0.9, test_rate=0.05, dev_rate=0.05):
     train_data = data[:train_num]
     test_data = data[train_num:train_num+test_num]
     dev_data = data[train_num+test_num:]
+    if weibo_data:
+        train_data = train_data.extend(weibo_data)
     with open(train_file, 'w', encoding='utf-8') as f:
         json.dump(train_data, f)
     with open(test_file, 'w', encoding='utf-8') as f:
@@ -134,6 +137,32 @@ def split_data(data, save_path, train_rate=0.9, test_rate=0.05, dev_rate=0.05):
     with open(dev_file, 'w', encoding='utf-8') as f:
         json.dump(dev_data, f)
     print(f"保存成功，训练集{len(train_data)},测试集{len(test_data)},开发集{len(dev_data)}")
+
+def split_data_dev(data, save_path, train_rate=0.8, dev_rate=0.2, weibodata=None):
+    """
+    保存为json文件，按比例保存
+    train.json
+    dev.json
+    :param data: data 列表,
+    :param weibodata: 如果weibodata存在，只作为训练集使用
+    :return:
+    """
+    random.seed(30)
+    random.shuffle(data)
+    total = len(data)
+    train_num = int(total * train_rate)
+    dev_num = int(total * dev_rate)
+    train_file = os.path.join(save_path, 'train.json')
+    dev_file = os.path.join(save_path, 'dev.json')
+    train_data = data[:train_num]
+    dev_data = data[train_num:]
+    if weibo_data:
+        train_data.extend(weibo_data)
+    with open(train_file, 'w', encoding='utf-8') as f:
+        json.dump(train_data, f)
+    with open(dev_file, 'w', encoding='utf-8') as f:
+        json.dump(dev_data, f)
+    print(f"保存成功，训练集{len(train_data)},开发集{len(dev_data)}")
 
 
 def format_data(data):
@@ -199,9 +228,68 @@ def analysis_data(data):
     print(sorted(lead_times)[:10])
     print(max(len_data["texts"]))
 
+def checkis_alpha_digit(text):
+    """
+    如果text是英文或数字，返回True，否则返回False
+    :param text:
+    :return:
+    """
+    import re
+    pattern = re.compile("[a-zA-Z0123456789]")
+    if pattern.match(text):
+        return True
+    else:
+        return False
+
+def colect_weibo(save_file="../data_root_dir/cosmetics/all.txt", filter_english_keyword=False):
+    """
+    收集微博的训练数据
+    :param save_file:
+    :param filter_english_keyword: 是否过滤掉包含英文和数字字符的keyword
+    :return: 存储到文件
+    """
+    # 原始文件中的sScore的映射方式
+    class2id = {
+        "消极": 0,
+        "中性": 1,
+        "积极": 2,
+    }
+    id2class = {value: key for key, value in class2id.items()}
+    with open(save_file, 'r') as f:
+        lines = f.readlines()
+    data = []
+    for idx, line in enumerate(lines):
+        line_chinese = json.loads(line)
+        text = line_chinese["content"]
+        # 如果这个句子没有aspect，那就过滤掉
+        if not line_chinese["aspect"]:
+            continue
+        for aspect in line_chinese["aspect"]:
+            keyword = aspect["aspectTerm"]
+            if filter_english_keyword:
+                #过滤掉包含英文和数字的
+                if checkis_alpha_digit(keyword):
+                    #包含英文或数字
+                    continue
+            sScore = aspect["sScore"]
+            label = id2class[sScore]
+            start = aspect["start"]
+            end = aspect["end"]
+            # 验证一下单词的位置是否在newcontent中位置对应
+            aspectTerm_insentence = "".join(text[start:end])
+            if not keyword == aspectTerm_insentence:
+                raise Exception(f"单词在句子中位置对应不上，请检查,句子行数{idx}, 句子是{line_chinese}")
+            one = (text, keyword, start, end, label)
+            data.append(one)
+    print(f"总数据量是{len(data)}")
+    return data
+
+
 
 if __name__ == '__main__':
+    weibo_data = colect_weibo(filter_english_keyword=True)
+    weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data)
     data = collect_json(dirpath="/opt/lavector")
     data = format_data(data)
     truncate_data, locations = do_truncate_data(data)
-    split_data(data=truncate_data, save_path="../data_root_dir/newcos")
+    split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
