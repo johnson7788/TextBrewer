@@ -11,6 +11,9 @@ import os
 import json
 import random
 import re
+import collections
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def collect_json(dirpath):
@@ -56,14 +59,15 @@ def do_truncate_data(data, left_max_seq_len=25, aspect_max_seq_len=25, right_max
     :param data:针对不同类型的数据进行不同的截断
     :return:返回列表，是截断后的文本，aspect
     所以如果一个句子中有多个aspect关键字，那么就会产生多个截断的文本+关键字，组成的列表，会产生多个预测结果
+    和locations: [(start_idx,end_idx),...]
     """
-    def aspect_truncate(content, aspect,aspect_start,aspect_end):
+    def aspect_truncate(content,aspect,aspect_start,aspect_end):
         """
         截断函数
-        :param content:
-        :param aspect:
-        :param aspect_start:
-        :param aspect_end:
+        :param content:句子
+        :param aspect:关键字
+        :param aspect_start:开始位置
+        :param aspect_end:结束位置
         :return:
         """
         text_left = content[:aspect_start]
@@ -99,6 +103,8 @@ def do_truncate_data(data, left_max_seq_len=25, aspect_max_seq_len=25, right_max
             locations.append((aspect_start, aspect_end))
         else:
             raise Exception(f"这条数据异常: {one_data},数据长度或者为2, 4，或者为5")
+    assert len(contents) == len(locations)
+    print(f"截断的参数left_max_seq_len: {left_max_seq_len}, aspect_max_seq_len: {aspect_max_seq_len}, right_max_seq_len:{right_max_seq_len}。截断后的数据总量是{len(contents)}")
     return contents, locations
 
 def split_data(data, save_path, train_rate=0.9, test_rate=0.05, dev_rate=0.05):
@@ -129,17 +135,73 @@ def split_data(data, save_path, train_rate=0.9, test_rate=0.05, dev_rate=0.05):
         json.dump(dev_data, f)
     print(f"保存成功，训练集{len(train_data)},测试集{len(test_data)},开发集{len(dev_data)}")
 
+
+def format_data(data):
+    """
+    整理数据，只保留需要的字段
+    :param data: [(text, keyword, start_idx, end_idx, label)]
+    :return:
+    """
+    newdata = []
+    for one in data:
+        text = one['data']['text']
+        keyword = one['data']['keyword']
+        if not one['completions'][0]['result']:
+            #过滤掉有问题的数据，有的数据是有问题的，所以没有标记，过滤掉
+            continue
+        start_idx = one['completions'][0]['result'][0]['value']['start']
+        end_idx = one['completions'][0]['result'][0]['value']['end']
+        label = one['completions'][0]['result'][0]['value']['labels'][0]
+        new = (text,keyword,start_idx,end_idx,label)
+        newdata.append(new)
+    print(f"处理完成后的数据总数是{len(newdata)}")
+    return newdata
+
+
 def analysis_data(data):
     """
     分析数据
     :param data:
     :return:
     """
-    pass
+    texts, keywords, start_idxs, end_idxs, labels, lead_times = [], [], [], [], [], []
+    for idx, one in enumerate(data):
+        print(f"第{idx}条数据")
+        text = one['data']['text']
+        keyword = one['data']['keyword']
+        if not one['completions'][0]['result']:
+            #过滤掉有问题的数据，有的数据是有问题的，所以没有标记，过滤掉
+            continue
+        start_idx = one['completions'][0]['result'][0]['value']['start']
+        end_idx = one['completions'][0]['result'][0]['value']['end']
+        label = one['completions'][0]['result'][0]['value']['labels'][0]
+        #标注的耗时
+        lead_time = one['completions'][0]['lead_time']
+        texts.append(text)
+        keywords.append(keyword)
+        start_idxs.append(start_idx)
+        end_idxs.append(end_idx)
+        labels.append(label)
+        lead_times.append(lead_time)
+    len_data = {"texts": list(map(len, texts)),
+                "keywords": list(map(len, keywords)),
+                "start_idxs": start_idxs,
+                "end_idxs": end_idxs,
+                "labels": list(map(len, labels)),
+                "lead_times": lead_times,
+                }
+    df = pd.DataFrame(len_data)
+    plt.plot(df)
+    plt.ylabel('结果')
+    plt.show()
+    print(sorted(texts,key=len)[-10:])
+    print(sorted(keywords,key=len)[-10:])
+    print(sorted(lead_times)[:10])
+    print(max(len_data["texts"]))
 
 
 if __name__ == '__main__':
     data = collect_json(dirpath="/opt/lavector")
-    analysis_data(data)
-    # truncate_data = do_truncate_data(data)
-    # split_data(data=data, save_path="../data_root_dir/newcos")
+    data = format_data(data)
+    truncate_data, locations = do_truncate_data(data)
+    split_data(data=truncate_data, save_path="../data_root_dir/newcos")

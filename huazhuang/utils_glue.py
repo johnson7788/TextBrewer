@@ -234,15 +234,11 @@ class NewcosProcessor(MnliProcessor):
     def _create_examples(self, lines, set_type):
         """处理label-studio收到的数据"""
         examples = []
-        labels = self.get_labels()
-        for i in range(0, len(lines)):
+        for idx, line in enumerate(lines):
             guid = 0
-            text_a = 0
-            text_b = 0
-            # label从 【-1，0，1】 --> [0,1,2]
-            label_id = int(lines[i+2][0])+ 1
-            # label_id --> NEG, NEU, POS
-            label = labels[label_id]
+            text_a = line[0]
+            text_b = line[1]
+            label = line[2]
             examples.append(
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
