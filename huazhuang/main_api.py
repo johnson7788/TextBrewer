@@ -94,7 +94,8 @@ class TorchAsBertModel(object):
         self.left_max_seq_len = 25
         self.right_max_seq_len = 25
         self.aspect_max_seq_len = 30
-        self.load_predict_model()
+        # self.load_predict_model()
+        self.load_macbert_model()
         # self.load_train_model()
 
     def load_train_model(self):

@@ -96,15 +96,7 @@ python main.distill.py  --vocab_file mac_bert_model/vocab.txt --data_dir data_ro
 
 ## 评估teacher模型 macbert, seq_length 75, 5000step, 22040条数据
 python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --tuned_checkpoint_S trained_teacher_model/macbert_teacher_max75len_5000.pkl --load_model_type all --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
-
-2020/12/31 15:02:16 - INFO - Main -    Num  examples = 1829
-2020/12/31 15:02:16 - INFO - Main -    Batch size = 8
-Evaluating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 229/229 [00:07<00:00, 30.31it/s]
-2020/12/31 15:02:23 - INFO - Main -  task:,newcos
-2020/12/31 15:02:23 - INFO - Main -  result: {'acc': 0.8337889557135046}
-2020/12/31 15:02:23 - INFO - Main -  ***** Eval results 0 task newcos *****
-2020/12/31 15:02:23 - INFO - Main -  acc = 0.8337889557135046
-
+模型准确率为:0.7916207276736494
 
 
 ## 对比以前的bert的teacher模型, 使用newcos 7000条数据集预测
