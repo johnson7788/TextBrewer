@@ -235,7 +235,7 @@ class NewcosProcessor(MnliProcessor):
         """处理label-studio收到的数据"""
         examples = []
         for idx, line in enumerate(lines):
-            guid = 0
+            guid = "%s-%s" % (set_type, idx)
             text_a = line[0]
             text_b = line[1]
             label = line[2]
