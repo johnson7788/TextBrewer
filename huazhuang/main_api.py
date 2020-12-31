@@ -81,7 +81,7 @@ def load_examples(contents, max_seq_length, tokenizer, label_list):
 class TorchAsBertModel(object):
     def __init__(self, verbose=0):
         self.verbose = verbose
-        self.label_list = ["中性","消极","积极"]
+        self.label_list = ["消极","中性","积极"]
         self.num_labels = len(self.label_list)
         # 判断使用的设备
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -95,7 +95,7 @@ class TorchAsBertModel(object):
         self.right_max_seq_len = 25
         self.aspect_max_seq_len = 30
         self.load_predict_model()
-        self.load_train_model()
+        # self.load_train_model()
 
     def load_train_model(self):
         """
@@ -179,6 +179,38 @@ class TorchAsBertModel(object):
         self.predict_model =  model_S
         logger.info(f"预测模型{model_file}加载完成")
 
+    def load_macbert_model(self):
+        parser = argparse.ArgumentParser()
+        args = parser.parse_args()
+        args.output_encoded_layers = True
+        args.output_attention_layers = True
+        args.output_att_score = True
+        args.output_att_sum = True
+        self.args = args
+        # 解析配置文件, 教师模型和student模型的vocab是不变的
+        self.vocab_file = "mac_bert_model/vocab.txt"
+        # 这里是使用的teacher的config和微调后的teacher模型, 也可以换成student的config和蒸馏后的student模型
+        # student config:  config/chinese_bert_config_L4t.json
+        # distil student model:  distil_model/gs8316.pkl
+        self.bert_config_file_S = "mac_bert_model/config.json"
+        self.tuned_checkpoint_S = "trained_teacher_model/macbert_teacher_max75len_5000.pkl"
+        self.max_seq_length = 70
+        # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
+        bert_config_S = BertConfig.from_json_file(self.bert_config_file_S)
+
+        # 加载tokenizer
+        tokenizer = BertTokenizer(vocab_file=self.vocab_file)
+
+        # 加载模型
+        model_S = BertSPCSimple(bert_config_S, num_labels=self.num_labels, args=self.args)
+        state_dict_S = torch.load(self.tuned_checkpoint_S, map_location=self.device)
+        model_S.load_state_dict(state_dict_S)
+        if self.verbose:
+            print("模型已加载")
+        self.predict_tokenizer = tokenizer
+        self.predict_model =  model_S
+        logger.info(f"macbert预测模型加载完成")
+
     def truncate(self, input_text, max_len, trun_post='post'):
         """
         实施截断数据
@@ -247,12 +279,20 @@ class TorchAsBertModel(object):
                 raise Exception(f"这条数据异常: {one_data},数据长度或者为2, 4，或者为5")
         return contents, locations
 
-    def predict_batch(self, data, truncated=False, model_file=None):
+    def compute_metrics(self, predid, labelid):
+        """
+        计算准确度
+        :return:
+        """
+        return (predid == labelid).mean()
+
+    def predict_batch(self, data, truncated=False, model_file=None, print_acc=False):
         """
         batch_size数据处理
         :param data: 是一个要处理的数据列表[(content,aspect),...,]
         :param truncated: 是否要截断数据
         :param model_file: 模型文件
+        :param print_acc: 如果要打印准确率，需要data的第三个位置时label
         :return:, 返回格式是 [(predicted_label, predict_score),...]
         """
         #如果为None，就不改变加载的模型，否则就改变加载的模型
@@ -270,7 +310,15 @@ class TorchAsBertModel(object):
 
         #把id变成标签
         predict_labels = [self.label_list[r] for r in predictids]
-        results = list(zip(predict_labels,probability,data,locations))
+        if truncated:
+            results = list(zip(predict_labels,probability,data, locations))
+        else:
+            results = list(zip(predict_labels, probability, data))
+
+        if print_acc:
+            label_ids = [self.label_list.index(d[2]) for d in data]
+            accuracy = self.compute_metrics(np.array(predictids), np.array(label_ids))
+            return results, accuracy
         return results
 
     def do_predict(self, model, eval_dataset, step=0):
@@ -429,6 +477,27 @@ def predict_truncate_model():
     results = model.predict_batch(test_data, truncated=True, model_file=latest_model_file)
     logger.info(f"收到的数据是:{test_data}")
     logger.info(f"预测的结果是:{results}")
+    return jsonify(results)
+
+@app.route("/api/predict_macbert", methods=['POST'])
+def predict_macbert():
+    """
+    加载macbert模型，返回预测结果
+    接收POST请求，获取data参数, data信息包含aspect关键在在句子中的位置信息，方便我们截取，我们截取aspect关键字的前后一定的字符作为输入
+    例如关键字前后的25个字作为sentenceA，aspect关键字作为sentenceB，输入模型
+    Args:
+        test_data: 需要预测的数据，是一个文字列表, [(content,aspect,start_idx, end_idx),...,]
+        如果传过来的数据没有索引，那么需要自己去查找索引 [(content,aspect),...,]
+    Returns: 返回格式是 [(predicted_label, predict_score),...]
+    """
+    jsonres = request.get_json()
+    test_data = jsonres.get('data', None)
+    # model = TorchAsBertModel()
+    model.load_macbert_model()
+    results, accuracy = model.predict_batch(test_data, truncated=False, print_acc=True)
+    logger.info(f"收到的数据是:{test_data}")
+    logger.info(f"预测的结果是:{results}")
+    logger.info(f"模型准确率为:{accuracy}")
     return jsonify(results)
 
 

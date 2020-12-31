@@ -95,10 +95,20 @@ python main.distill.py --vocab_file mac_bert_model/vocab.txt --data_dir data_roo
 python main.distill.py  --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/t8_TbaseST4tiny_eval  --temperature 8 --task_name newcos
 
 ## 评估teacher模型 macbert, seq_length 75, 5000step, 22040条数据
-python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S trained_teacher_model/macbert_teacher_max75len_5000.pkl --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
+python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --tuned_checkpoint_S trained_teacher_model/macbert_teacher_max75len_5000.pkl --load_model_type all --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
+
+2020/12/31 15:02:16 - INFO - Main -    Num  examples = 1829
+2020/12/31 15:02:16 - INFO - Main -    Batch size = 8
+Evaluating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 229/229 [00:07<00:00, 30.31it/s]
+2020/12/31 15:02:23 - INFO - Main -  task:,newcos
+2020/12/31 15:02:23 - INFO - Main -  result: {'acc': 0.8337889557135046}
+2020/12/31 15:02:23 - INFO - Main -  ***** Eval results 0 task newcos *****
+2020/12/31 15:02:23 - INFO - Main -  acc = 0.8337889557135046
+
+
 
 ## 对比以前的bert的teacher模型, 使用newcos 7000条数据集预测
-python main.trainer.py --vocab_file bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S bert_model/config.json --init_checkpoint_S trained_teacher_model/gs3024.pkl --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
+python main.trainer.py --vocab_file bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S bert_model/config.json --tuned_checkpoint_S trained_teacher_model/gs3024.pkl --load_model_type all --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
 2020/12/31 11:41:19 - INFO - Main -  device cuda n_gpu 1 distributed training False
 2020/12/31 11:41:19 - INFO - utils -  从缓存加载features data_root_dir/newcos/cached_dev_70_newcos
 2020/12/31 11:41:19 - INFO - Main -  预测数据集已加载
