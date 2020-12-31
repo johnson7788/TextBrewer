@@ -128,8 +128,8 @@ def split_data(data, save_path, train_rate=0.9, test_rate=0.05, dev_rate=0.05, w
     train_data = data[:train_num]
     test_data = data[train_num:train_num+test_num]
     dev_data = data[train_num+test_num:]
-    if weibo_data:
-        train_data = train_data.extend(weibo_data)
+    if weibodata:
+        train_data = train_data.extend(weibodata)
     with open(train_file, 'w', encoding='utf-8') as f:
         json.dump(train_data, f)
     with open(test_file, 'w', encoding='utf-8') as f:
@@ -311,10 +311,32 @@ def valid_data(data):
             print("数据的aspect长度为0")
     print(f"数据校验成功")
 
-if __name__ == '__main__':
+
+def get_all_and_weibo_75():
+    """
+    25+25+25
+    最大75个字的长度的文本
+    :return:
+    """
     weibo_data = colect_weibo(filter_english_keyword=True)
     weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data)
     data = collect_json(dirpath="/opt/lavector")
     data = format_data(data)
     truncate_data, locations = do_truncate_data(data)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
+
+def get_all_and_weibo_45():
+    """
+    最大15+15+15个字的长度的文本
+    :return:
+    """
+    weibo_data = colect_weibo(filter_english_keyword=True)
+    weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data,left_max_seq_len=15, aspect_max_seq_len=15, right_max_seq_len=15)
+    data = collect_json(dirpath="/opt/lavector")
+    data = format_data(data)
+    truncate_data, locations = do_truncate_data(data,left_max_seq_len=15, aspect_max_seq_len=15, right_max_seq_len=15)
+    train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
+
+
+if __name__ == '__main__':
+    get_all_and_weibo_45()
