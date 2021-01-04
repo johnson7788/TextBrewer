@@ -230,7 +230,7 @@ class ElectraSPC(ElectraPreTrainedModel):
         sequence_output = discriminator_hidden_states[0]
         #形状 torch.Size([batch_size, num_labels])
         logits = self.classifier(sequence_output)
-
+        # 如果不为True，那么不能输出 self.output_attentions = True， self.output_hidden_states = True
         hidden_states, attention_output = discriminator_hidden_states[1:]  # add hidden states and attention if they are here
 
         if labels is not None:
