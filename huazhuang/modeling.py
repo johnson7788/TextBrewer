@@ -145,7 +145,13 @@ def BertForGLUESimpleAdaptor(batch, model_outputs, no_logits, no_mask):
     return dict_obj
 
 def BertForGLUESimpleAdaptorTraining(batch, model_outputs):
-    return {'losses':(model_outputs[3],)}
+    """
+    返回模型的损失
+    :param batch:
+    :param model_outputs:
+    :return:
+    """
+    return {'losses':(model_outputs[-1],)}
 
 
 class ElectraClassificationHead(nn.Module):
@@ -169,6 +175,8 @@ class ElectraClassificationHead(nn.Module):
 class ElectraSPC(ElectraPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
+        self.output_attentions = config.output_attentions
+        self.output_hidden_states = config.output_hidden_states
         self.num_labels = config.num_labels
         self.electra = ElectraModel(config)
         self.classifier = ElectraClassificationHead(config)
@@ -178,15 +186,10 @@ class ElectraSPC(ElectraPreTrainedModel):
 
     def forward(
         self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        head_mask=None,
-        inputs_embeds=None,
+        input_ids,
+        attention_mask,
+        token_type_ids,
         labels=None,
-        output_attentions=None,
-        output_hidden_states=None,
     ):
         r"""
         labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`, defaults to :obj:`None`):
@@ -217,14 +220,15 @@ class ElectraSPC(ElectraPreTrainedModel):
             input_ids,
             attention_mask,
             token_type_ids,
-            position_ids,
-            head_mask,
-            inputs_embeds,
-            output_attentions,
-            output_hidden_states,
+            position_ids=None,
+            head_mask=None,
+            inputs_embeds=None,
+            output_attentions=self.output_attentions,
+            output_hidden_states=self.output_hidden_states,
         )
-
+        #形状 torch.Size([batch_size, seq_lenth, hidden_size])
         sequence_output = discriminator_hidden_states[0]
+        #形状 torch.Size([batch_size, num_labels])
         logits = self.classifier(sequence_output)
 
         outputs = (logits,) + discriminator_hidden_states[1:]  # add hidden states and attention if they are here

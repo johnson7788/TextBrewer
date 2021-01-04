@@ -144,6 +144,7 @@ def main():
         bert_config_S = ElectraConfig.from_json_file(args.bert_config_file_S)
         # (args.output_encoded_layers=='true')  --> True, 默认输出隐藏层的状态
         bert_config_S.output_hidden_states = (args.output_encoded_layers == 'true')
+        bert_config_S.output_attentions = (args.output_attention_layers=='true')
         # num_labels；类别个数
         bert_config_S.num_labels = num_labels
         assert args.max_seq_length <= bert_config_S.max_position_embeddings
