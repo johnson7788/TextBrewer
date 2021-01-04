@@ -199,7 +199,7 @@ def format_data(data):
         if len(research) > 1:
             annotation_num = len(one['completions'][0]['result'])
             if len(research) != annotation_num:
-                print("标注的数量不匹配，请检查")
+                print("标注的数量不匹配, 不会造成影响")
         #一句话中的多个标注结果
         results = one['completions'][0]['result']
         for res in results:
@@ -353,7 +353,7 @@ def model_filter_again():
     只获取已标注的数据
     25+25+25, 最高准确率79%
     最大75个字的长度的文本
-    :return:
+    :return: [['Text','Keyword', 'Start', 'End','Label','Predict', 'Score'],...]
     """
     data = collect_json(dirpath="/opt/lavector")
     data = format_data(data)
@@ -363,8 +363,6 @@ def model_filter_again():
     predict_wrong_examples = []
     # 保存样本到csv中
     predict_wrong_examples_csv = "wrong.json"
-    #预测错误的样本，导出到excel
-    export_wrong_examples = []
     # 保存预测错误的样本到excel中
     export_wrong_examples_excel = "wrong.xlsx"
     for d,t,r in zip(data, truncate_data, response_data):
@@ -375,13 +373,12 @@ def model_filter_again():
             print("请检查, truncate之后数据混乱了")
         if label != predicted_label:
             print("模型预测的结果与ground truth不一致")
-            predict_wrong_examples.append([text, keyword, start_idx, end_idx])
-            export_wrong_examples.append([text, keyword, start_idx, end_idx, label, predicted_label, predict_score])
+            predict_wrong_examples.append([text, keyword, start_idx, end_idx, label, predicted_label, predict_score])
     print(f"总样本数是{len(data)},预测错误的样本总数是{len(predict_wrong_examples)}")
 
     with open(predict_wrong_examples_csv, 'w') as f:
         json.dump(predict_wrong_examples, f)
-    df = pd.DataFrame(export_wrong_examples,columns=['Text','Keyword', 'Start', 'End','Label','Predict', 'Score'])
+    df = pd.DataFrame(predict_wrong_examples,columns=['Text','Keyword', 'Start', 'End','Label','Predict', 'Score'])
     writer = pd.ExcelWriter(export_wrong_examples_excel, engine='xlsxwriter')
     df.to_excel(writer, sheet_name='table1')
     writer.save()
@@ -450,6 +447,6 @@ if __name__ == '__main__':
     # get_all_and_weibo_105()
     # get_all_and_weibo_75_mini()
     # saveto_excel()
-    # model_filter_again()
-    data = collect_json(dirpath="/opt/lavector")
+    model_filter_again()
+    # data = collect_json(dirpath="/opt/lavector")
     # data = format_data(data)
