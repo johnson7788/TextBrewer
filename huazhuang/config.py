@@ -18,6 +18,7 @@ def parse(opt=None):
                         help="WordPiece标签化之后的最大总输入序列长度。长度大于此长度的序列将被截断，小于长度的序列将被填充。")
     parser.add_argument("--do_train", default=False, action='store_true', help="是否训练")
     parser.add_argument("--do_predict", default=False, action='store_true', help="是否在评估集上评估")
+    parser.add_argument("--model_architecture", default="bert", type=str, help="是使用哪种架构，bert或者electra, 默认bert，等同于macbert")
     parser.add_argument("--train_batch_size", default=32, type=int, help="训练集batch_size")
     parser.add_argument("--predict_batch_size", default=8, type=int, help="预测时batch_size")
     parser.add_argument("--learning_rate", default=3e-5, type=float, help="初始化的Adam学习率")

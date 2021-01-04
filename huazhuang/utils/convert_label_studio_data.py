@@ -446,7 +446,8 @@ step: 3009 ****
 if __name__ == '__main__':
     # get_all_and_weibo_105()
     # get_all_and_weibo_75_mini()
+    get_all_and_weibo_75()
     # saveto_excel()
-    model_filter_again()
+    # model_filter_again()
     # data = collect_json(dirpath="/opt/lavector")
     # data = format_data(data)

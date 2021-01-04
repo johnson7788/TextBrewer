@@ -13,6 +13,8 @@ import numpy as np
 import torch
 from utils_glue import output_modes, processors
 from pytorch_pretrained_bert.my_modeling import BertConfig
+from transformers import ElectraConfig
+from modeling import ElectraSPC
 from pytorch_pretrained_bert import BertTokenizer
 from optimization import BERTAdam
 import config
@@ -129,10 +131,6 @@ def main():
     forward_batch_size = int(args.train_batch_size / args.gradient_accumulation_steps)
     args.forward_batch_size = forward_batch_size
 
-    #Student的Bert配置
-    bert_config_S = BertConfig.from_json_file(args.bert_config_file_S)
-    assert args.max_seq_length <= bert_config_S.max_position_embeddings
-
     #准备任务
     processor = processors[args.task_name]()
     args.output_mode = output_modes[args.task_name]
@@ -140,10 +138,24 @@ def main():
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
+    # Student的配置
+    if args.model_architecture == "electra":
+        # 从transformers包中导入ElectraConfig, 并加载配置
+        bert_config_S = ElectraConfig.from_json_file(args.bert_config_file_S)
+        # (args.output_encoded_layers=='true')  --> True, 默认输出隐藏层的状态
+        bert_config_S.output_hidden_states = (args.output_encoded_layers == 'true')
+        # num_labels；类别个数
+        bert_config_S.num_labels = num_labels
+        assert args.max_seq_length <= bert_config_S.max_position_embeddings
+    else:
+        bert_config_S = BertConfig.from_json_file(args.bert_config_file_S)
+        assert args.max_seq_length <= bert_config_S.max_position_embeddings
+
     #read data
     train_dataset = None
     eval_datasets  = None
     num_train_steps = None
+    # electra和bert都使用的bert的 tokenizer方式
     tokenizer = BertTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
     # 加载数据集, 计算steps
     if args.do_train:
@@ -161,8 +173,13 @@ def main():
         logger.info("预测数据集已加载")
 
 
-    #加载模型配置, 只用student模型，其实这里相当于在MNLI数据上训练教师模型，只训练一个模型
-    model_S = BertSPCSimple(bert_config_S, num_labels=num_labels,args=args)
+    # Student的配置
+    if args.model_architecture == "electra":
+        #加载模型配置, 只用student模型，其实这里相当于训练教师模型，只训练一个模型
+        model_S = ElectraSPC(bert_config_S)
+    else:
+        #加载模型配置, 只用student模型，其实这里相当于训练教师模型，只训练一个模型
+        model_S = BertSPCSimple(bert_config_S, num_labels=num_labels,args=args)
     #对加载后的student模型的参数进行初始化, 使用student模型预测
     if args.load_model_type=='bert':
         assert args.init_checkpoint_S is not None
