@@ -78,9 +78,15 @@ utils/download_electra.py 下载macbert模型, hfl/chinese-electra-180g-base-dis
 * run_train.sh : 训练教师模型(hfl/chinese-electra-180g-base-discriminator), 使用eletrac模型
 python main.trainer.py --model_architecture electra --vocab_file electra_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S electra_model/config.json --init_checkpoint_S electra_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos_electra --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
 模型保存为gs{global_step}.pkl 格式
+2021/01/04 08:19:57 - INFO - Main -  task:,newcos
+2021/01/04 08:19:57 - INFO - Main -  result: {'acc': 0.7655339805825243}
+2021/01/04 08:19:57 - INFO - Main -  ***** Eval results 6246 task newcos *****
+2021/01/04 08:19:57 - INFO - Main -  acc = 0.7655339805825243
+
 
 ## 评估teacher模型 electra, seq_length 75, 5000step, 22040条数据, 使用的开发集
 python main.trainer.py --model_architecture electra --vocab_file electra_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S electra_model/config.json --tuned_checkpoint_S trained_teacher_model/xxxxx.pkl --load_model_type all --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos_electra --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
+
 
 
 # 使用newcos数据集训练, bert 或macbert
