@@ -175,8 +175,8 @@ class ElectraClassificationHead(nn.Module):
 class ElectraSPC(ElectraPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
-        self.output_attentions = config.output_attentions
-        self.output_hidden_states = config.output_hidden_states
+        self.output_attentions = True
+        self.output_hidden_states = True
         self.num_labels = config.num_labels
         self.electra = ElectraModel(config)
         self.classifier = ElectraClassificationHead(config)
