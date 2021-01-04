@@ -181,7 +181,7 @@ def main():
         #加载模型配置, 只用student模型，其实这里相当于训练教师模型，只训练一个模型
         model_S = BertSPCSimple(bert_config_S, num_labels=num_labels,args=args)
     #对加载后的student模型的参数进行初始化, 使用student模型预测
-    if args.load_model_type=='bert':
+    if args.load_model_type=='bert' and args.model_architecture != "electra":
         assert args.init_checkpoint_S is not None
         state_dict_S = torch.load(args.init_checkpoint_S, map_location='cpu')
         if args.only_load_embedding:
@@ -198,6 +198,12 @@ def main():
         state_dict_S = torch.load(args.tuned_checkpoint_S,map_location='cpu')
         model_S.load_state_dict(state_dict_S)
         logger.info("Model loaded")
+    elif args.model_architecture == "electra":
+        assert args.init_checkpoint_S is not None
+        state_dict_S = torch.load(args.init_checkpoint_S, map_location='cpu')
+        missing_keys, unexpected_keys = model_S.load_state_dict(state_dict_S,strict=False)
+        logger.info(f"missing keys:{missing_keys}")
+        logger.info(f"unexpected keys:{unexpected_keys}")
     else:
         logger.info("Model is randomly initialized.")
     #模型move to device
