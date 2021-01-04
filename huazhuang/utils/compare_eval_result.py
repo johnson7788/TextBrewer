@@ -86,6 +86,38 @@ def compare_model(hostname='http://127.0.0.1:3314'):
     print(f"保存到excel成功{excel_file}")
     return newdata
 
+def read_result_online():
+    """
+    读取result_online.xlsx,比较
+    上文，关键字，下午的字数比
+    pretext + keyword + posttest
+    predict 表示的结果是75个字的，25+25+25的结果
+    online_predict 表示的结果是 15+30+20
+    :return:
+    """
+    df = pd.read_excel("result_online.xlsx")
+    total = 0
+
+    predict_yes = 0
+    online_yes = 0
+    for index, row in df.iterrows():
+        label = row['label']
+        predict = row['predict']
+        online_predict = row['online_predict']
+        if predict != online_predict:
+            total += 1
+            if predict == label:
+                predict_yes +=1
+            elif online_predict == label:
+                online_yes +=1
+            else:
+                print("都没预测正确")
+                print(row)
+                print()
+    print(f"共有{total}个不一样, 75个字预测的结果是{predict_yes}, 线上65个字的预测结果是{online_yes}")
+
+
 if __name__ == '__main__':
     # collect_data()
     compare_model()
+    read_result_online()
