@@ -36,3 +36,4 @@ huazhuang/electra_model/
 huazhuang/data_root_dir/newcos/
 *.gz
 *.xlsx
+huazhuang/utils/wrong.json

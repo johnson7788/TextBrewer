@@ -489,7 +489,7 @@ def predict_macbert():
     Args:
         test_data: 需要预测的数据，是一个文字列表, [(content,aspect,start_idx, end_idx),...,]
         如果传过来的数据没有索引，那么需要自己去查找索引 [(content,aspect),...,]
-    Returns: 返回格式是 [(predicted_label, predict_score),...]
+    Returns: 返回格式是 [(predicted_label, predict_score, data),...]
     """
     jsonres = request.get_json()
     test_data = jsonres.get('data', None)

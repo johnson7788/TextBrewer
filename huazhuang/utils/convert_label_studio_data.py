@@ -14,6 +14,7 @@ import re
 import collections
 import pandas as pd
 import matplotlib.pyplot as plt
+import requests
 
 
 def collect_json(dirpath):
@@ -34,6 +35,20 @@ def collect_json(dirpath):
             data.extend(file_data)
     print(f"共收集数据{len(data)} 条")
     return data
+
+def saveto_excel():
+    """
+    保存collect_json的数据到excel
+    :return:
+    """
+    output_file = "output.xlsx"
+    data = collect_json(dirpath="/opt/lavector")
+    data = format_data(data)
+    df = pd.DataFrame(data,columns=['Text','Keyword', 'Start', 'End', 'Label'])
+    writer = pd.ExcelWriter(output_file, engine='xlsxwriter')
+    df.to_excel(writer, sheet_name='table1')
+    writer.save()
+    print(f"保存到excel{output_file}完成")
 
 
 def truncate(input_text, max_len, trun_post='post'):
@@ -169,8 +184,8 @@ def split_data_dev(data, save_path, train_rate=0.8, dev_rate=0.2, weibodata=None
 def format_data(data):
     """
     整理数据，只保留需要的字段
-    :param data: [(text, keyword, start_idx, end_idx, label)]
-    :return:
+    :param data:
+    :return:[(text, keyword, start_idx, end_idx, label)]
     """
     newdata = []
     for one in data:
@@ -179,11 +194,20 @@ def format_data(data):
         if not one['completions'][0]['result']:
             #过滤掉有问题的数据，有的数据是有问题的，所以没有标记，过滤掉
             continue
-        start_idx = one['completions'][0]['result'][0]['value']['start']
-        end_idx = one['completions'][0]['result'][0]['value']['end']
-        label = one['completions'][0]['result'][0]['value']['labels'][0]
-        new = (text,keyword,start_idx,end_idx,label)
-        newdata.append(new)
+        # 校验一下一共几个关键字，标注了几个
+        research = re.findall(keyword,text)
+        if len(research) > 1:
+            annotation_num = len(one['completions'][0]['result'])
+            if len(research) != annotation_num:
+                print("标注的数量不匹配，请检查")
+        #一句话中的多个标注结果
+        results = one['completions'][0]['result']
+        for res in results:
+            start_idx = res['value']['start']
+            end_idx = res['value']['end']
+            label = res['value']['labels'][0]
+            new = (text,keyword,start_idx,end_idx,label)
+            newdata.append(new)
     print(f"处理完成后的数据总数是{len(newdata)}")
     return newdata
 
@@ -311,6 +335,57 @@ def valid_data(data):
             print("数据的aspect长度为0")
     print(f"数据校验成功")
 
+def dopredict_macbert(data, host="127.0.0.1"):
+    """
+    预测结果
+    :param data:
+    :return: [(predicted_label, predict_score),...]
+    """
+    url = f"http://{host}:5000/api/predict_macbert"
+    data = {'data': data}
+    headers = {'content-type': 'application/json'}
+    r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
+    return r.json()
+
+def model_filter_again():
+    """
+    用模型筛选出所有预测错误的样本，重新检查
+    只获取已标注的数据
+    25+25+25, 最高准确率79%
+    最大75个字的长度的文本
+    :return:
+    """
+    data = collect_json(dirpath="/opt/lavector")
+    data = format_data(data)
+    truncate_data, locations = do_truncate_data(data)
+    response_data = dopredict_macbert(data=truncate_data, host="192.168.50.119")
+    #预测错误的样本
+    predict_wrong_examples = []
+    # 保存样本到csv中
+    predict_wrong_examples_csv = "wrong.json"
+    #预测错误的样本，导出到excel
+    export_wrong_examples = []
+    # 保存预测错误的样本到excel中
+    export_wrong_examples_excel = "wrong.xlsx"
+    for d,t,r in zip(data, truncate_data, response_data):
+        text, keyword, start_idx, end_idx, label = d
+        new_content, aspect, _ = t
+        predicted_label, predict_score, _ = r
+        if aspect != keyword:
+            print("请检查, truncate之后数据混乱了")
+        if label != predicted_label:
+            print("模型预测的结果与ground truth不一致")
+            predict_wrong_examples.append([text, keyword, start_idx, end_idx])
+            export_wrong_examples.append([text, keyword, start_idx, end_idx, label, predicted_label, predict_score])
+    print(f"总样本数是{len(data)},预测错误的样本总数是{len(predict_wrong_examples)}")
+
+    with open(predict_wrong_examples_csv, 'w') as f:
+        json.dump(predict_wrong_examples, f)
+    df = pd.DataFrame(export_wrong_examples,columns=['Text','Keyword', 'Start', 'End','Label','Predict', 'Score'])
+    writer = pd.ExcelWriter(export_wrong_examples_excel, engine='xlsxwriter')
+    df.to_excel(writer, sheet_name='table1')
+    writer.save()
+    print(f"保存到excel: {export_wrong_examples_excel}完成")
 
 def get_all_and_weibo_75():
     """
@@ -373,4 +448,8 @@ step: 3009 ****
 
 if __name__ == '__main__':
     # get_all_and_weibo_105()
-    get_all_and_weibo_75_mini()
+    # get_all_and_weibo_75_mini()
+    # saveto_excel()
+    # model_filter_again()
+    data = collect_json(dirpath="/opt/lavector")
+    # data = format_data(data)
