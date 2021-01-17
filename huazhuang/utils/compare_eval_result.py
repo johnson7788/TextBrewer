@@ -11,9 +11,9 @@ import requests
 
 def collect_data(devfile="../data_root_dir/newcos/dev.json", eval_results="../output_root_dir/newcos/eval_results-newcos.json"):
     """
-    生成excel
+    生成excel, 对比main.trainer.py生成的结果和devfile
     :param devfile: 训练文件，格式是 [(text, keyword, labels),..]
-    :param eval_results: main.trainer.py生成的文件output文件中的json文件   [(predid, probality)]
+    :param eval_results:   main.trainer.py生成的文件output文件中的json文件   [(predid, probality)]
     :return:
     """
     labels = ["消极","中性","积极"]
@@ -36,7 +36,7 @@ def collect_data(devfile="../data_root_dir/newcos/dev.json", eval_results="../ou
 
 def compare_model(hostname='http://127.0.0.1:3314'):
     """
-    把收集到的数据，放到线上，对比一下准确率
+    把收集到的数据，放到线上，对比一下准确率，不是和咱们自己的模型对比
     :param hostname:
     :return:
     """
@@ -117,7 +117,41 @@ def read_result_online():
     print(f"共有{total}个不一样, 75个字预测的结果是{predict_yes}, 线上65个字的预测结果是{online_yes}")
 
 
+def dopredict(test_data, host="127.0.0.1"):
+    """
+    预测结果
+    :param test_data:
+    :return:
+    """
+    url = f"http://{host}:5000/api/predict_macbert"
+    data = {'data': test_data}
+    headers = {'content-type': 'application/json'}
+    r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
+    return r.json()
+
+def download_data_and_compare(hostname="http://192.168.50.119:8080/api/", dirpath="/opt/lavector/", jsonfile="192.168.50.119_500.json"):
+    """
+    从label_studio的某个hostname下载数据，然后预测，最后给出结果
+    :return:
+    """
+    from convert_label_studio_data import format_data, do_truncate_data
+    from absa_api import export_data
+    #从label-studio下载文
+    json_file = export_data(hostname=hostname,dirpath=dirpath, jsonfile=jsonfile)
+    #加载从label-studio获取的到json文件
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+        print(f"共收集数据{len(data)} 条")
+        return data
+    data = format_data(data)
+    truncate_data, locations = do_truncate_data(data)
+    predict_result = dopredict(test_data=truncate_data)
+
+
+
+
 if __name__ == '__main__':
     # collect_data()
-    compare_model()
-    read_result_online()
+    # compare_model()
+    # read_result_online()
+    download_data_and_compare()

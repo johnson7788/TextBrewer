@@ -442,7 +442,6 @@ step: 3009 ****
     truncate_data, locations = do_truncate_data(data,left_max_seq_len=40, aspect_max_seq_len=25, right_max_seq_len=40)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
 
-
 if __name__ == '__main__':
     # get_all_and_weibo_105()
     # get_all_and_weibo_75_mini()
