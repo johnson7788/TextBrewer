@@ -95,6 +95,8 @@ def do_truncate_data(data, left_max_seq_len=25, aspect_max_seq_len=25, right_max
     contents = []
     #保存关键字的索引，[(start_idx, end_idx)...]
     locations = []
+    #保留原始数据，一同返回
+    original_data = []
     for one_data in data:
         if len(one_data) == 2:
             #不带aspect关键字的位置信息，自己查找位置
@@ -105,22 +107,31 @@ def do_truncate_data(data, left_max_seq_len=25, aspect_max_seq_len=25, right_max
                 new_content = aspect_truncate(content, aspect, aspect_start, aspect_end)
                 contents.append((new_content, aspect))
                 locations.append((aspect_start,aspect_end))
+                original_data.append(one_data)
         elif len(one_data) == 4:
             # 不带label时，长度是4，
             content, aspect, aspect_start, aspect_end = one_data
             new_content = aspect_truncate(content, aspect, aspect_start,aspect_end)
             contents.append((new_content, aspect))
             locations.append((aspect_start, aspect_end))
+            original_data.append(one_data)
         elif len(one_data) == 5:
             content, aspect, aspect_start, aspect_end, label = one_data
             new_content = aspect_truncate(content, aspect, aspect_start, aspect_end)
             contents.append((new_content, aspect, label))
             locations.append((aspect_start, aspect_end))
+            original_data.append(one_data)
+        elif len(one_data) == 7:
+            content, aspect, aspect_start, aspect_end, label, channel,wordtype = one_data
+            new_content = aspect_truncate(content, aspect, aspect_start, aspect_end)
+            contents.append((new_content, aspect, label))
+            locations.append((aspect_start, aspect_end))
+            original_data.append(one_data)
         else:
             raise Exception(f"这条数据异常: {one_data},数据长度或者为2, 4，或者为5")
-    assert len(contents) == len(locations)
+    assert len(contents) == len(locations) == len(original_data)
     print(f"截断的参数left_max_seq_len: {left_max_seq_len}, aspect_max_seq_len: {aspect_max_seq_len}, right_max_seq_len:{right_max_seq_len}。截断后的数据总量是{len(contents)}")
-    return contents, locations
+    return original_data, contents, locations
 
 def split_data(data, save_path, train_rate=0.9, test_rate=0.05, dev_rate=0.05, weibodata=None):
     """
@@ -191,6 +202,8 @@ def format_data(data):
     for one in data:
         text = one['data']['text']
         keyword = one['data']['keyword']
+        channel = one['data']['channel']
+        wordtype= one['data']['wordtype']
         if not one['completions'][0]['result']:
             #过滤掉有问题的数据，有的数据是有问题的，所以没有标记，过滤掉
             continue
@@ -206,7 +219,7 @@ def format_data(data):
             start_idx = res['value']['start']
             end_idx = res['value']['end']
             label = res['value']['labels'][0]
-            new = (text,keyword,start_idx,end_idx,label)
+            new = (text,keyword,start_idx,end_idx,label,channel,wordtype)
             newdata.append(new)
     print(f"处理完成后的数据总数是{len(newdata)}")
     return newdata
@@ -357,7 +370,7 @@ def model_filter_again():
     """
     data = collect_json(dirpath="/opt/lavector")
     data = format_data(data)
-    truncate_data, locations = do_truncate_data(data)
+    original_data, truncate_data, locations = do_truncate_data(data)
     response_data = dopredict_macbert(data=truncate_data, host="192.168.50.119")
     #预测错误的样本
     predict_wrong_examples = []
@@ -391,10 +404,10 @@ def get_all_and_weibo_75():
     :return:
     """
     weibo_data = colect_weibo(filter_english_keyword=True)
-    weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data)
+    original_data, weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data)
     data = collect_json(dirpath="/opt/lavector")
     data = format_data(data)
-    truncate_data, locations = do_truncate_data(data)
+    original_data, truncate_data, locations = do_truncate_data(data)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
 
 def get_all_and_weibo_75_mini():
@@ -406,7 +419,7 @@ def get_all_and_weibo_75_mini():
     """
     data = collect_json(dirpath="/opt/lavector")
     data = format_data(data)
-    truncate_data, locations = do_truncate_data(data)
+    original_data, truncate_data, locations = do_truncate_data(data)
     train_data, dev_data = split_data_dev(data=truncate_data[:200], save_path="../data_root_dir/newcos")
 
 
@@ -416,10 +429,10 @@ def get_all_and_weibo_45():
     :return:
     """
     weibo_data = colect_weibo(filter_english_keyword=True)
-    weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data,left_max_seq_len=15, aspect_max_seq_len=15, right_max_seq_len=15)
+    original_data, weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data,left_max_seq_len=15, aspect_max_seq_len=15, right_max_seq_len=15)
     data = collect_json(dirpath="/opt/lavector")
     data = format_data(data)
-    truncate_data, locations = do_truncate_data(data,left_max_seq_len=15, aspect_max_seq_len=15, right_max_seq_len=15)
+    original_data, truncate_data, locations = do_truncate_data(data,left_max_seq_len=15, aspect_max_seq_len=15, right_max_seq_len=15)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
 
 def get_all_and_weibo_105():
@@ -436,10 +449,10 @@ step: 3009 ****
     :return:
     """
     weibo_data = colect_weibo(filter_english_keyword=True)
-    weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data,left_max_seq_len=40, aspect_max_seq_len=25, right_max_seq_len=40)
+    original_data, weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data,left_max_seq_len=40, aspect_max_seq_len=25, right_max_seq_len=40)
     data = collect_json(dirpath="/opt/lavector")
     data = format_data(data)
-    truncate_data, locations = do_truncate_data(data,left_max_seq_len=40, aspect_max_seq_len=25, right_max_seq_len=40)
+    original_data ,truncate_data, locations = do_truncate_data(data,left_max_seq_len=40, aspect_max_seq_len=25, right_max_seq_len=40)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
 
 if __name__ == '__main__':
