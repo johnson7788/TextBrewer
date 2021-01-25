@@ -129,26 +129,29 @@ def dopredict(test_data, host="127.0.0.1"):
     r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
     return r.json()
 
-def download_data_and_compare(hostname="http://192.168.50.119:8080/api/", dirpath="/opt/lavector/", jsonfile="192.168.50.119_500.json"):
+def download_data_and_compare(hostname=["http://192.168.50.139:8081/api/"], dirpath="/opt/lavector/", jsonfile=["192.168.50.139_500_8081.json",]):
     """
     从label_studio的某个hostname下载数据，然后预测，最后给出结果
     :return:
     """
     from absa_api import export_data
     #从label-studio下载文
-    json_file = export_data(hostname=hostname,dirpath=dirpath, jsonfile=jsonfile, proxy=False)
-    data = predict_comare_excel(json_file)
+    original_data = []
+    for hname, jfile in zip(hostname,jsonfile):
+        json_file = export_data(hostname=hname, dirpath=dirpath, jsonfile=jfile, proxy=False)
+        #加载从label-studio获取的到json文件
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+            print(f"共收集主机{hname}的数据{len(data)} 条")
+            original_data.extend(data)
+    data = predict_comare_excel(original_data)
     return data
-def predict_comare_excel(json_file,result_excel="result.xlsx", export_wrong_examples_excel="wrong.xlsx",correct_examples_excel= "correct.xlsx"):
+def predict_comare_excel(original_data,result_excel="result.xlsx", export_wrong_examples_excel="wrong.xlsx",correct_examples_excel= "correct.xlsx"):
     from convert_label_studio_data import format_data, do_truncate_data
-    #加载从label-studio获取的到json文件
-    with open(json_file, 'r') as f:
-        data = json.load(f)
-        print(f"共收集数据{len(data)} 条")
     # [(text, keyword, start_idx, end_idx, label)]
-    data = format_data(data)
+    data = format_data(original_data)
     original_data,truncate_data, locations = do_truncate_data(data)
-    predict_result = dopredict(test_data=truncate_data, host="192.168.50.119")
+    predict_result = dopredict(test_data=truncate_data, host="192.168.50.139")
     # print(predict_result)
     excel_data = []
     for ori, d, loc in zip(original_data, predict_result, locations):

@@ -199,6 +199,10 @@ def format_data(data):
     :return:[(text, keyword, start_idx, end_idx, label)]
     """
     newdata = []
+    #多人标注的条数, 一共多人标注的条数
+    repeats_completions = 0
+    #多人标注时，不一致的数量
+    not_same_label_num = 0
     for one in data:
         text = one['data']['text']
         keyword = one['data']['keyword']
@@ -212,8 +216,29 @@ def format_data(data):
         if len(research) > 1:
             annotation_num = len(one['completions'][0]['result'])
             if len(research) != annotation_num:
-                print("标注的数量不匹配, 不会造成影响")
+                print("标注的数量不匹配, 不会造成影响，例如句子中有2个词，我们只标注了一个词")
         #一句话中的多个标注结果
+        #如果有多个标注结果，对比下标注结果，把不同的打印出来,
+        if len(one['completions']) >1:
+            # print(f"标注结果大于1个，打印出来，只打印出2个人标注完全不一样的结果")
+            unique = {}
+            for completion in one['completions']:
+                repeats_completions += 1
+                for res in completion['result']:
+                    start_idx = res['value']['start']
+                    end_idx = res['value']['end']
+                    label = res['value']['labels'][0]
+                    unique_sentence_idx = f"{str(start_idx):{str(end_idx)}}"
+                    unique_sentence_label= f"{label}:{keyword}"
+                    if unique_sentence_idx in unique.keys():
+                        if unique_sentence_label != unique[unique_sentence_idx]:
+                            print(f"2个人标注的数据不一致, 句子为:{text}   标注的单词位置: {start_idx}-{end_idx}   一个标注为:{unique[unique_sentence_idx]}  另一个标注为:{unique_sentence_label}")
+                            not_same_label_num += 1
+                        else:
+                            # 2个人标注的一致,忽略
+                            continue
+                    else:
+                        unique[unique_sentence_idx] = unique_sentence_label
         results = one['completions'][0]['result']
         for res in results:
             start_idx = res['value']['start']
@@ -221,7 +246,7 @@ def format_data(data):
             label = res['value']['labels'][0]
             new = (text,keyword,start_idx,end_idx,label,channel,wordtype)
             newdata.append(new)
-    print(f"处理完成后的数据总数是{len(newdata)}")
+    print(f"处理完成后的数据总数是{len(newdata)}, 存在{repeats_completions}多人标注的数据, 标注不一致的数据有{not_same_label_num}条")
     return newdata
 
 
@@ -458,8 +483,8 @@ step: 3009 ****
 if __name__ == '__main__':
     # get_all_and_weibo_105()
     # get_all_and_weibo_75_mini()
-    get_all_and_weibo_75()
+    # get_all_and_weibo_75()
     # saveto_excel()
     # model_filter_again()
     # data = collect_json(dirpath="/opt/lavector")
-    # data = format_data(data)
+    data = format_data(data)
