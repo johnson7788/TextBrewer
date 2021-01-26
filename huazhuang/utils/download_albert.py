@@ -1,6 +1,7 @@
 from transformers import BertTokenizer, AlbertForMaskedLM
 import os
-pretrained = 'voidful/albert_chinese_xlarge'
+# pretrained = 'voidful/albert_chinese_xlarge'
+pretrained = 'voidful/albert_chinese_large'
 tokenizer = BertTokenizer.from_pretrained(pretrained)
 model = AlbertForMaskedLM.from_pretrained(pretrained)
 
