@@ -144,3 +144,7 @@ Evaluating: 100%|█████████████████████
 2020/12/31 11:42:27 - INFO - Main -  ***** Eval results 0 task newcos *****
 2020/12/31 11:42:27 - INFO - Main -  acc = 0.6843060597598436
 {'acc': 0.6843060597598436}
+
+
+# 成分词判断，判断一个词是否是成分词
+python main.trainer.py --model_architecture electra --vocab_file electra_model/vocab.txt --data_dir data_root_dir/components --bert_config_file_T none --bert_config_file_S electra_model/config.json --init_checkpoint_S electra_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/components_electra --gradient_accumulation_steps 1 --task_name components --output_att_sum false --output_encoded_layers false --output_attention_layers false

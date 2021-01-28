@@ -42,7 +42,7 @@ def saveto_excel():
     :return:
     """
     output_file = "output.xlsx"
-    data = collect_json(dirpath="/opt/lavector")
+    data = collect_json(dirpath="/opt/lavector/absa")
     data = format_data(data)
     df = pd.DataFrame(data,columns=['Text','Keyword', 'Start', 'End', 'Label'])
     writer = pd.ExcelWriter(output_file, engine='xlsxwriter')
@@ -106,6 +106,16 @@ def do_truncate_data(data, left_max_seq_len=25, aspect_max_seq_len=25, right_max
                 aspect_start, aspect_end = m.span()
                 new_content = aspect_truncate(content, aspect, aspect_start, aspect_end)
                 contents.append((new_content, aspect))
+                locations.append((aspect_start,aspect_end))
+                original_data.append(one_data)
+        elif len(one_data) == 3:
+            #不带aspect关键字的位置信息，带label
+            content, aspect, label = one_data
+            iter = re.finditer(aspect, content)
+            for m in iter:
+                aspect_start, aspect_end = m.span()
+                new_content = aspect_truncate(content, aspect, aspect_start, aspect_end)
+                contents.append((new_content, aspect, label))
                 locations.append((aspect_start,aspect_end))
                 original_data.append(one_data)
         elif len(one_data) == 4:
@@ -393,7 +403,7 @@ def model_filter_again():
     最大75个字的长度的文本
     :return: [['Text','Keyword', 'Start', 'End','Label','Predict', 'Score'],...]
     """
-    data = collect_json(dirpath="/opt/lavector")
+    data = collect_json(dirpath="/opt/lavector/absa")
     data = format_data(data)
     original_data, truncate_data, locations = do_truncate_data(data)
     response_data = dopredict_macbert(data=truncate_data, host="192.168.50.119")
@@ -430,7 +440,7 @@ def get_all_and_weibo_75():
     """
     weibo_data = colect_weibo(filter_english_keyword=True)
     original_data, weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data)
-    data = collect_json(dirpath="/opt/lavector")
+    data = collect_json(dirpath="/opt/lavector/absa")
     data = format_data(data)
     original_data, truncate_data, locations = do_truncate_data(data)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
@@ -442,7 +452,7 @@ def get_all_and_weibo_75_mini():
     最大75个字的长度的文本
     :return:
     """
-    data = collect_json(dirpath="/opt/lavector")
+    data = collect_json(dirpath="/opt/lavector/absa")
     data = format_data(data)
     original_data, truncate_data, locations = do_truncate_data(data)
     train_data, dev_data = split_data_dev(data=truncate_data[:200], save_path="../data_root_dir/newcos")
@@ -455,7 +465,7 @@ def get_all_and_weibo_45():
     """
     weibo_data = colect_weibo(filter_english_keyword=True)
     original_data, weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data,left_max_seq_len=15, aspect_max_seq_len=15, right_max_seq_len=15)
-    data = collect_json(dirpath="/opt/lavector")
+    data = collect_json(dirpath="/opt/lavector/absa")
     data = format_data(data)
     original_data, truncate_data, locations = do_truncate_data(data,left_max_seq_len=15, aspect_max_seq_len=15, right_max_seq_len=15)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
@@ -475,10 +485,46 @@ step: 3009 ****
     """
     weibo_data = colect_weibo(filter_english_keyword=True)
     original_data, weibo_data_truncate, weibo_locations = do_truncate_data(weibo_data,left_max_seq_len=40, aspect_max_seq_len=25, right_max_seq_len=40)
-    data = collect_json(dirpath="/opt/lavector")
+    data = collect_json(dirpath="/opt/lavector/absa")
     data = format_data(data)
     original_data ,truncate_data, locations = do_truncate_data(data,left_max_seq_len=40, aspect_max_seq_len=25, right_max_seq_len=40)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
+
+
+def components_data_hive():
+    """
+    从hive获取数据
+    :return:[{'channel': 'jd', 'text': '还没用，烟酰胺原液还没用完，用着还不错，吸收很快，没有那种粘粘的感觉。还是朋友介绍的这个牌子，她说效果很好，买了好几套了，爽肤水和乳液用着也很好。', 'keyword': '烟酰胺', 'wordtype': '成分'},
+            ...
+            ]
+    """
+    from read_hive import get_absa_corpus
+    data = get_absa_corpus(channel=None,requiretags=['component'], number=1000, not_cache=False, save_cache=False,table="da_wide_table_new")
+    return data
+
+def get_components_75():
+    """
+    25+25+25, 最高准确率79%
+    最大75个字的长度的文本
+    :return:
+    """
+    #或者从文件夹中获取json数据
+    data = collect_json(dirpath="/opt/lavector/components")
+    data = format_data(data)
+    original_data, truncate_data, locations = do_truncate_data(data)
+    train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/components/")
+
+def gen_comonents_75():
+    """
+    第一次生成数据,随机label,
+    :return:
+    """
+    #从hive获取数据
+    data = components_data_hive()
+    format_data = [[d['text'], d['keyword'],random.choice(["是","否"])] for d in data]
+    original_data, truncate_data, locations = do_truncate_data(format_data)
+    split_data(data=truncate_data, save_path="../data_root_dir/components/")
+
 
 if __name__ == '__main__':
     # get_all_and_weibo_105()
@@ -486,5 +532,6 @@ if __name__ == '__main__':
     # get_all_and_weibo_75()
     # saveto_excel()
     # model_filter_again()
-    # data = collect_json(dirpath="/opt/lavector")
-    data = format_data(data)
+    # data = collect_json(dirpath="/opt/lavector/absa")
+    # data = format_data(data)
+    gen_comonents_75()

@@ -243,6 +243,39 @@ class NewcosProcessor(MnliProcessor):
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
+class NewComponentsProcessor(MnliProcessor):
+    """处理判断是否是成分的数据"""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            lines = self._read_json(os.path.join(data_dir, "train.json")), set_type="train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            lines = self._read_json(os.path.join(data_dir, "dev.json")),
+            set_type = "dev")
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            lines = self._read_json(os.path.join(data_dir, "test.json")),
+            set_type = "test")
+    def get_labels(self):
+        """cosmetics的labels"""
+        return ["是","否"]
+    def _create_examples(self, lines, set_type):
+        """处理label-studio收到的数据"""
+        examples = []
+        for idx, line in enumerate(lines):
+            guid = "%s-%s" % (set_type, idx)
+            text_a = line[0]
+            text_b = line[1]
+            label = line[2]
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
+
 
 class ColaProcessor(DataProcessor):
     """Processor for the CoLA data set (GLUE version)."""
@@ -655,6 +688,8 @@ def compute_metrics(task_name, preds, labels):
         return {"acc": simple_accuracy(preds, labels)}
     elif task_name == "newcos":
         return {"acc": simple_accuracy(preds, labels)}
+    elif task_name == "components":
+        return {"acc": simple_accuracy(preds, labels)}
     elif task_name == "mnli-mm":
         return {"mm-acc": simple_accuracy(preds, labels)}
     elif task_name == "qnli":
@@ -671,6 +706,7 @@ processors = {
     "mnli": MnliProcessor,
     "cosmetics": CosmeticsProcessor,
     "newcos": NewcosProcessor,
+    "components": NewComponentsProcessor,
     "mnli-mm": MnliMismatchedProcessor,
     "mrpc": MrpcProcessor,
     "sst-2": Sst2Processor,
@@ -686,6 +722,7 @@ output_modes = {
     "mnli": "classification",
     "cosmetics": "classification",
     "newcos": "classification",
+    "components": "classification",
     "mnli-mm": "classification",
     "mrpc": "classification",
     "sst-2": "classification",
@@ -701,6 +738,7 @@ GLUE_TASKS_NUM_LABELS = {
     "mnli": 3,
     "cosmetics": 3,
     "newcos": 3,
+    "components": 2,
     "mrpc": 2,
     "sst-2": 2,
     "sts-b": 1,
