@@ -5,7 +5,8 @@ from torch.nn import CrossEntropyLoss, BCEWithLogitsLoss, MSELoss
 import torch.nn.functional as F
 import config as Conf
 from pytorch_pretrained_bert.my_modeling import BertModel, BertLayerNorm
-from transformers import ElectraPreTrainedModel, ElectraModel
+from transformers import ElectraPreTrainedModel, ElectraModel, AlbertPreTrainedModel, AlbertModel
+from transformers.modeling_outputs import SequenceClassifierOutput
 logger = logging.getLogger(__name__)
 
 
@@ -242,5 +243,69 @@ class ElectraSPC(ElectraPreTrainedModel):
                 loss_fct = CrossEntropyLoss()
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             return logits, sequence_output, attention_output, loss
+        else:
+            return logits
+
+
+
+class AlbertSPC(AlbertPreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.output_attentions = True
+        self.output_hidden_states = True
+        self.num_labels = config.num_labels
+        self.albert = AlbertModel(config)
+        self.dropout = nn.Dropout(config.classifier_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
+        self.init_weights()
+
+    def forward(
+        self,
+        input_ids,
+        attention_mask,
+        token_type_ids,
+        labels=None,
+        return_dict=None,
+    ):
+        r"""
+        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
+            Labels for computing the sequence classification/regression loss. Indices should be in ``[0, ...,
+            config.num_labels - 1]``. If ``config.num_labels == 1`` a regression loss is computed (Mean-Square loss),
+            If ``config.num_labels > 1`` a classification loss is computed (Cross-Entropy).
+        """
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        outputs = self.albert(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=None,
+            head_mask=None,
+            inputs_embeds=None,
+            output_attentions=self.output_attentions,
+            output_hidden_states=self.output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        pooled_output = outputs[1]
+
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
+
+        #形状 torch.Size([batch_size, seq_lenth, hidden_size])
+        # sequence_output = outputs[0]
+        #形状 torch.Size([batch_size, num_labels])
+        # 如果不为True，那么不能输出 self.output_attentions = True， self.output_hidden_states = True
+        hidden_states, attention_output = outputs[2:]  # add hidden states and attention if they are here
+
+        if labels is not None:
+            if self.num_labels == 1:
+                #  We are doing regression
+                loss_fct = MSELoss()
+                loss = loss_fct(logits.view(-1), labels.view(-1))
+            else:
+                loss_fct = CrossEntropyLoss()
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            return logits, pooled_output, attention_output, loss
         else:
             return logits

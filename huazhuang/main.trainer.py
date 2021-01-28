@@ -13,8 +13,8 @@ import numpy as np
 import torch
 from utils_glue import output_modes, processors
 from pytorch_pretrained_bert.my_modeling import BertConfig
-from transformers import ElectraConfig
-from modeling import ElectraSPC
+from transformers import ElectraConfig, AlbertConfig
+from modeling import ElectraSPC,AlbertSPC
 from pytorch_pretrained_bert import BertTokenizer
 from optimization import BERTAdam
 import config
@@ -148,6 +148,15 @@ def main():
         # num_labels；类别个数
         bert_config_S.num_labels = num_labels
         assert args.max_seq_length <= bert_config_S.max_position_embeddings
+    elif args.model_architecture == "albert":
+        # 从transformers包中导入AlbertConfig, 并加载配置
+        bert_config_S = AlbertConfig.from_json_file(args.bert_config_file_S)
+        # (args.output_encoded_layers=='true')  --> True, 默认输出隐藏层的状态
+        bert_config_S.output_hidden_states = (args.output_encoded_layers == 'true')
+        bert_config_S.output_attentions = (args.output_attention_layers=='true')
+        # num_labels；类别个数
+        bert_config_S.num_labels = num_labels
+        assert args.max_seq_length <= bert_config_S.max_position_embeddings
     else:
         bert_config_S = BertConfig.from_json_file(args.bert_config_file_S)
         assert args.max_seq_length <= bert_config_S.max_position_embeddings
@@ -178,11 +187,13 @@ def main():
     if args.model_architecture == "electra":
         #加载模型配置, 只用student模型，其实这里相当于训练教师模型，只训练一个模型
         model_S = ElectraSPC(bert_config_S)
+    elif args.model_architecture == "albert":
+        model_S = AlbertSPC(bert_config_S)
     else:
         #加载模型配置, 只用student模型，其实这里相当于训练教师模型，只训练一个模型
         model_S = BertSPCSimple(bert_config_S, num_labels=num_labels,args=args)
     #对加载后的student模型的参数进行初始化, 使用student模型预测
-    if args.load_model_type=='bert' and args.model_architecture != "electra":
+    if args.load_model_type=='bert' and args.model_architecture not in ["electra", "albert"]:
         assert args.init_checkpoint_S is not None
         state_dict_S = torch.load(args.init_checkpoint_S, map_location='cpu')
         if args.only_load_embedding:
@@ -199,7 +210,7 @@ def main():
         state_dict_S = torch.load(args.tuned_checkpoint_S,map_location='cpu')
         model_S.load_state_dict(state_dict_S)
         logger.info("Model loaded")
-    elif args.model_architecture == "electra":
+    elif args.model_architecture in ["electra", "albert"]:
         assert args.init_checkpoint_S is not None
         state_dict_S = torch.load(args.init_checkpoint_S, map_location='cpu')
         missing_keys, unexpected_keys = model_S.load_state_dict(state_dict_S,strict=False)
