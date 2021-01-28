@@ -496,10 +496,10 @@ def predict_albert():
     test_data = jsonres.get('data', None)
     # model = TorchAsBertModel()
     # model.load_predict_model()
-    results = model.predict_batch(test_data, truncated=False, print_acc=False)
+    results, accuracy = model.predict_batch(test_data, truncated=False, print_acc=True)
     logger.info(f"收到的数据是:{test_data}")
     logger.info(f"预测的结果是:{results}")
-    # logger.info(f"模型准确率为:{accuracy}")
+    logger.info(f"模型准确率为:{accuracy}")
     return jsonify(results)
 
 
@@ -539,4 +539,4 @@ def train_truncate():
 
 if __name__ == "__main__":
     model = TorchAsBertModel()
-    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
+    app.run(host='0.0.0.0', port=5010, debug=True, threaded=True)

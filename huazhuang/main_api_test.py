@@ -73,4 +73,4 @@ if __name__ == '__main__':
     # res = dotrain(train_data)
     # print(res)
     # dopredict_macbert(host="192.168.50.119")
-    dopredict_albert(host="127.0.0.1", data=test_data)
+    dopredict(host="127.0.0.1", test_data=test_data)
