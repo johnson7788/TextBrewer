@@ -502,9 +502,24 @@ def components_data_hive():
     data = get_absa_corpus(channel=None,requiretags=['component'], number=1000, not_cache=False, save_cache=False,table="da_wide_table_new")
     return data
 
+
+def make_static(data):
+    """
+    统计正负样本的比例
+    :param data: [[sentence, label],...]
+    :return:
+    """
+    from collections import Counter
+    keywords = [d[1] for d in data]
+    labels = [d[2] for d in data]
+    lcoutner = Counter(labels)
+    kcounter = Counter(keywords)
+    print(f"标签统计: {lcoutner}")
+    print(f"关键字统计: {kcounter}")
+
 def get_components_75():
     """
-    25+25+25, 最高准确率79%
+    25+25+25,
     最大75个字的长度的文本
     :return:
     """
@@ -512,9 +527,10 @@ def get_components_75():
     data = collect_json(dirpath="/opt/lavector/components")
     data = format_data(data)
     original_data, truncate_data, locations = do_truncate_data(data)
-    train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/components/")
+    make_static(truncate_data)
+    train_data, dev_data = split_data_dev(data=truncate_data, train_rate=0.9, dev_rate=0.1, save_path="../data_root_dir/components/")
 
-def gen_comonents_75():
+def gen_components_75_first():
     """
     第一次生成数据,随机label,
     :return:
@@ -534,4 +550,4 @@ if __name__ == '__main__':
     # model_filter_again()
     # data = collect_json(dirpath="/opt/lavector/absa")
     # data = format_data(data)
-    gen_comonents_75()
+    get_components_75()
