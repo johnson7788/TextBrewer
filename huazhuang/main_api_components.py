@@ -65,6 +65,11 @@ def load_examples(contents, max_seq_length, tokenizer, label_list):
             sentence, aspect, label = content
             examples.append(
                 InputExample(guid=guid, text_a=sentence, text_b=aspect, label=label))
+        elif len(content) == 5:
+            # 表示内容是sentence和aspect关键字和label，一般用于训练, start和end是aspect的位置信息
+            sentence, aspect, start, end, label = content
+            examples.append(
+                InputExample(guid=guid, text_a=sentence, text_b=aspect, label=label))
         else:
             print(f"这条数据有问题，过滤掉: {guid}: {content}")
     features = convert_examples_to_features(examples, label_list, max_seq_length, tokenizer,
@@ -317,8 +322,8 @@ class TorchAsBertModel(object):
         else:
             results = list(zip(predict_labels, probability, data))
 
-        if print_acc and len(data[0]) >2:
-            label_ids = [self.label_list.index(d[2]) for d in data]
+        if print_acc and len(data[0]) > 2:
+            label_ids = [self.label_list.index(d[-1]) for d in data]
             accuracy = self.compute_metrics(np.array(predictids), np.array(label_ids))
             return results, accuracy
         return results

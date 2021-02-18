@@ -395,6 +395,7 @@ def dopredict_macbert(data, host="127.0.0.1"):
     r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
     return r.json()
 
+
 def model_filter_again():
     """
     用模型筛选出所有预测错误的样本，重新检查
@@ -541,6 +542,65 @@ def gen_components_75_first():
     original_data, truncate_data, locations = do_truncate_data(format_data)
     split_data(data=truncate_data, save_path="../data_root_dir/components/")
 
+def db2local(save_file="/opt/lavector/components/json.mongo", collect='label_corpus', use_cache=True):
+    """
+    从MongoDB 获取数据，保存到save_file中, mongo结果， 模型准确率为:0.6782511210762332
+    :param save_file:
+    :param collect: label_corpus 获取a s_corpus
+    :return:
+    """
+    # 配置client, 如果存在，并且使用cache，那么直接返回结果
+    if use_cache and os.path.exists(save_file):
+        with open(save_file, 'r') as f:
+            results = json.load(f)
+        return results
+    results = []
+    import pymongo
+    client = pymongo.MongoClient("192.168.50.139", 27017)
+    # 设置database
+    db = client['ai-corpus']
+    # 选择哪个collections
+    collection = db[collect]
+    mydoc = collection.find({})
+    for x in mydoc:
+        content = x["content"]
+        for aspect in x["aspect"]:
+            start = aspect["start"]
+            end = aspect["end"]
+            keyword = aspect["aspectTerm"]
+            aspectCategory = aspect["aspectCategory"]
+            if aspectCategory == "其他":
+                label = "否"
+            else:
+                label = "是"
+            results.append([content, keyword, start, end, label])
+    with open(save_file, 'w') as f:
+        json.dump(results,f)
+    print(f"获得样本数{len(results)}，文件已生成{save_file}")
+    return results
+
+def dopredict_albert(host="127.0.0.1", data=None):
+    """
+    预测成分的结果
+    :param test_data:
+    :return:
+    """
+    # testfile = "data_root_dir/newcos/dev.json"
+    # with open(testfile, 'r') as f:
+    #     data = json.load(f)
+    url = f"http://{host}:5010/api/predict_albert"
+    data = {'data': data}
+    headers = {'content-type': 'application/json'}
+    r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
+    return r.json()
+
+def mongo_res_to_excel(mongo_res="mongo.res"):
+    """
+    把mongo中的获取的数据预测后的结果，统计并生成excel
+    :param mongo_res:
+    :return:
+    """
+    pass
 
 if __name__ == '__main__':
     # get_all_and_weibo_105()
@@ -551,3 +611,6 @@ if __name__ == '__main__':
     # data = collect_json(dirpath="/opt/lavector/absa")
     # data = format_data(data)
     get_components_75()
+    # data = db2local(use_cache=False)
+    # dopredict_albert(host="127.0.0.1", data=data)
+    # result = dopredict_albert(host="192.168.50.139", data=data)

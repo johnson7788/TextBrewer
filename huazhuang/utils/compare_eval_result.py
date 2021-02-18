@@ -117,19 +117,18 @@ def read_result_online():
     print(f"共有{total}个不一样, 75个字预测的结果是{predict_yes}, 线上65个字的预测结果是{online_yes}")
 
 
-def dopredict(test_data, host="127.0.0.1"):
+def dopredict(test_data, url="http://127.0.0.1:5000/api/predict_macbert"):
     """
     预测结果
     :param test_data:
     :return:
     """
-    url = f"http://{host}:5000/api/predict_macbert"
     data = {'data': test_data}
     headers = {'content-type': 'application/json'}
     r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
     return r.json()
 
-def download_data_and_compare(hostname=["http://192.168.50.139:8081/api/"], dirpath="/opt/lavector/", jsonfile=["192.168.50.139_500_8081.json",]):
+def download_data_and_compare(hostname=["http://192.168.50.139:8081/api/"], dirpath="/opt/lavector/absa/", jsonfile=["192.168.50.139_500_8081_0129.json"], isabsa=True):
     """
     从label_studio的某个hostname下载数据，然后预测，最后给出结果
     :return:
@@ -144,14 +143,75 @@ def download_data_and_compare(hostname=["http://192.168.50.139:8081/api/"], dirp
             data = json.load(f)
             print(f"共收集主机{hname}的数据{len(data)} 条")
             original_data.extend(data)
-    data = predict_comare_excel(original_data)
+    data = predict_comare_excel(original_data, isabsa=isabsa)
     return data
-def predict_comare_excel(original_data,result_excel="result.xlsx", export_wrong_examples_excel="wrong.xlsx",correct_examples_excel= "correct.xlsx"):
+
+
+def download_data_and_compare_same(hostname=["http://192.168.50.139:8081/api/","http://192.168.50.139:8080/api/"], dirpath="/opt/lavector/absa/", jsonfile=["192.168.50.139_500_8081_0129.json","192.168.50.139_500_8080_0129.json"], isabsa=True):
+    """
+    对比相同的hostname的数据
+    从label_studio的某个hostname下载数据，然后预测，最后给出结果
+    :return:
+    """
+    from absa_api import export_data
+    #从label-studio下载文
+    if len(hostname) != 2:
+        raise Exception("必须准2个hostname，里面包含相同的评估数据")
+    result = []
+    for hname, jfile in zip(hostname,jsonfile):
+        original_data = []
+        json_file = export_data(hostname=hname, dirpath=dirpath, jsonfile=jfile, proxy=False)
+        #加载从label-studio获取的到json文件
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+            print(f"共收集主机{hname}的数据{len(data)} 条")
+            original_data.extend(data)
+        predict_data, excel_data = predict_comare_excel(original_data, isabsa=isabsa)
+        result.append([hname, predict_data, excel_data])
+    #对比2个人标注的数据
+    diffrent_data = []
+    print(f"对比host为 {result[0][0], result[1][0]}")
+    hname1, data1, pre1 = result[0]
+    hname2, data2, pre2 = result[1]
+    if len(data1) != len(data2):
+        raise Exception("两个人标注的数据总数不一致")
+    for d1, d2 in zip(data1,data2):
+        if d1[0] != d2[0]:
+            print("这条数据不一致")
+        else:
+            if d1[4] != d2[4]:
+                print(f"2个人标注的标签不一致")
+                print(d1[0])
+                print(d1[1])
+                print(d1[4])
+                print(d2[4])
+                one_data = {"text": d1[0], "keyword": d1[1], "P1_label": d1[4], "P2_label": d2[4], "location": d1[2:4]}
+                diffrent_data.append(one_data)
+    print(f"不一致的数据总量是{len(diffrent_data)}")
+    df = pd.DataFrame(diffrent_data)
+    writer = pd.ExcelWriter("diffrent.xlsx", engine='xlsxwriter')
+    df.to_excel(writer)
+    writer.save()
+    print(f"保存到diffrent.xlsx excel成功")
+    return data
+
+def predict_comare_excel(original_data,result_excel="result.xlsx", export_wrong_examples_excel="wrong.xlsx",correct_examples_excel= "correct.xlsx", isabsa=True):
+    """
+    :param original_data:
+    :param result_excel:
+    :param export_wrong_examples_excel:
+    :param correct_examples_excel:
+    :param isabsa:
+    :return:  data是预处理后的，excel_data是模型预测的结果
+    """
     from convert_label_studio_data import format_data, do_truncate_data
     # [(text, keyword, start_idx, end_idx, label)]
     data = format_data(original_data)
     original_data,truncate_data, locations = do_truncate_data(data)
-    predict_result = dopredict(test_data=truncate_data, host="192.168.50.139")
+    if isabsa:
+        predict_result = dopredict(test_data=truncate_data, url="http://192.168.50.139:5000/api/predict_macbert")
+    else:
+        predict_result = dopredict(test_data=truncate_data, url="http://192.168.50.139:5010/api/predict_albert")
     # print(predict_result)
     excel_data = []
     for ori, d, loc in zip(original_data, predict_result, locations):
@@ -190,8 +250,7 @@ def predict_comare_excel(original_data,result_excel="result.xlsx", export_wrong_
     print(f"保存全部为错误的样本到excel: {export_wrong_examples_excel}完成")
     print(f"保存全部为正确的样本到excel: {correct_examples_excel}完成")
     print(f"准确率为{(len(correct_examples))/len(data)}")
-    return data
-
+    return data, excel_data
 
 def get_json_data_compare(jsonfile="/opt/lavector/192.168.50.119_8086.json"):
     """
@@ -208,5 +267,8 @@ if __name__ == '__main__':
     # collect_data()
     # compare_model()
     # read_result_online()
-    download_data_and_compare()
+    # download_data_and_compare()
+    # download_data_and_compare(hostname=["http://192.168.50.139:8086/api/"], dirpath="/opt/lavector/components/", jsonfile= ["192.168.50.139_500_8086_0129.json"],isabsa=False)
+    download_data_and_compare(hostname=["http://192.168.50.139:8081/api/"], dirpath="/opt/lavector/absa/", jsonfile= ["192.168.50.139_500_8081_0205.json"],isabsa=True)
     # get_json_data_compare()
+    # download_data_and_compare_same()
