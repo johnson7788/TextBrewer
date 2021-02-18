@@ -6,17 +6,21 @@ utils/download_mac_bert.py 下载macbert模型,hfl/chinese-macbert-base
 
 ## 步骤1
 * run_train.sh : 训练教师模型(bert-base-cased)
+```
 python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S mac_bert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/mnli_base_lr2e3_bs24_teacher --gradient_accumulation_steps 1 --task_name cosmetics --output_att_sum false --output_encoded_layers false --output_attention_layers false
 模型保存为gs{global_step}.pkl 格式
+```
 
 ## 步骤2
 * run_distill_T4tiny.sh : 蒸馏教师模型到T4Tiny
+```
 python main.distill.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type none --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 40 --learning_rate 10e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/t8_TbaseST4tiny_AllSmmdH1_lr10e40_bs24 --gradient_accumulation_steps 1 --temperature 8 --task_name cosmetics --output_att_sum false --output_encoded_layers true --output_attention_layers false --matches L4t_hidden_mse L4_hidden_smmd
-
+```
 ## 步骤3
 * run_distill_T4tiny_eval.sh 评估蒸馏模型  
+```
 python main.distill.py  --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/t8_TbaseST4tiny_eval  --temperature 8 --task_name cosmetics
-
+```
 
 # 运行参数介绍
 ```
@@ -72,9 +76,12 @@ python main.distill.py  --vocab_file mac_bert_model/vocab.txt --data_dir data_ro
 ```
 
 # 使用ELECTRA模型训练newcos
+```
 utils/download_electra.py 下载macbert模型, hfl/chinese-electra-180g-base-discriminator
+```
 
 ## 训练步骤1
+```
 * run_train.sh : 训练教师模型(hfl/chinese-electra-180g-base-discriminator), 使用eletrac模型
 python main.trainer.py --model_architecture electra --vocab_file electra_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S electra_model/config.json --init_checkpoint_S electra_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos_electra --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
 模型保存为gs{global_step}.pkl 格式
@@ -82,33 +89,43 @@ python main.trainer.py --model_architecture electra --vocab_file electra_model/v
 2021/01/04 08:19:57 - INFO - Main -  result: {'acc': 0.7655339805825243}
 2021/01/04 08:19:57 - INFO - Main -  ***** Eval results 6246 task newcos *****
 2021/01/04 08:19:57 - INFO - Main -  acc = 0.7655339805825243
-
+```
 
 ## 评估teacher模型 electra, seq_length 75, 5000step, 22040条数据, 使用的开发集
+```
 python main.trainer.py --model_architecture electra --vocab_file electra_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S electra_model/config.json --tuned_checkpoint_S trained_teacher_model/xxxxx.pkl --load_model_type all --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos_electra --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
-
+```
 
 
 # 使用newcos数据集训练, bert 或macbert
 ## 步骤1
 * run_train.sh : 训练教师模型(macbert)
+```
 python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S mac_bert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
 模型保存为gs{global_step}.pkl 格式
+```
 
 ## 步骤2
 * run_distill_T4tiny.sh : 蒸馏教师模型到T4Tiny
+```
 python main.distill.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type none --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 40 --learning_rate 10e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos_distil --gradient_accumulation_steps 1 --temperature 8 --task_name newcos --output_att_sum false --output_encoded_layers true --output_attention_layers false --matches L4t_hidden_mse L4_hidden_smmd
+```
 
 ## 步骤3
 * run_distill_T4tiny_eval.sh 评估模型  
+```
 python main.distill.py  --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T mac_bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/t8_TbaseST4tiny_eval  --temperature 8 --task_name newcos
+```
 
 ## 评估teacher模型 macbert, seq_length 75, 5000step, 22040条数据
+```
 python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --tuned_checkpoint_S trained_teacher_model/macbert_teacher_max75len_5000.pkl --load_model_type all --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
 模型准确率为:0.7916207276736494
+```
 
 
 ## 对比以前的bert的teacher模型, 使用newcos 7000条数据集预测
+```
 python main.trainer.py --vocab_file bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S bert_model/config.json --tuned_checkpoint_S trained_teacher_model/gs3024.pkl --load_model_type all --do_lower_case --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
 2020/12/31 11:41:19 - INFO - Main -  device cuda n_gpu 1 distributed training False
 2020/12/31 11:41:19 - INFO - utils -  从缓存加载features data_root_dir/newcos/cached_dev_70_newcos
@@ -125,8 +142,10 @@ Evaluating: 100%|█████████████████████
 2020/12/31 11:41:53 - INFO - Main -  ***** Eval results 0 task newcos *****
 2020/12/31 11:41:53 - INFO - Main -  acc = 0.7187936330633902
 {'acc': 0.7187936330633902}
+```
 
 ## 对比以前的bert的蒸馏模型,使用newcos 7000条数据集预测
+```
 python main.distill.py  --vocab_file bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T bert_model/config.json --bert_config_file_S config/chinese_bert_config_L4t.json --tuned_checkpoint_T trained_teacher_model/gs3024.pkl --load_model_type all --tuned_checkpoint_S distil_model/gs8316.pkl  --do_predict --max_seq_length 70  --random_seed 9580 --output_dir output_root_dir/bert_distial  --temperature 8 --task_name newcos
 2020/12/31 11:42:17 - INFO - Main -  device cuda n_gpu 1 distributed training False
 2020/12/31 11:42:18 - INFO - utils -  从缓存加载features data_root_dir/newcos/cached_dev_70_newcos
@@ -144,11 +163,14 @@ Evaluating: 100%|█████████████████████
 2020/12/31 11:42:27 - INFO - Main -  ***** Eval results 0 task newcos *****
 2020/12/31 11:42:27 - INFO - Main -  acc = 0.6843060597598436
 {'acc': 0.6843060597598436}
-
+```
 
 # 成分词判断，判断一个词是否是成分词
 ## electra
+```
 python main.trainer.py --model_architecture electra --vocab_file electra_model/vocab.txt --data_dir data_root_dir/components --bert_config_file_T none --bert_config_file_S electra_model/config.json --init_checkpoint_S electra_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/components_electra --gradient_accumulation_steps 1 --task_name components --output_att_sum false --output_encoded_layers false --output_attention_layers false --num_train_epochs 5
-
+```
 ## albert
+```
 python main.trainer.py --model_architecture albert --vocab_file albert_model/vocab.txt --data_dir data_root_dir/components --bert_config_file_T none --bert_config_file_S albert_model/config.json --init_checkpoint_S albert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/components_albert --gradient_accumulation_steps 1 --task_name components --output_att_sum false --output_encoded_layers false --output_attention_layers false --num_train_epochs 5
+```
