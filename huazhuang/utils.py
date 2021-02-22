@@ -47,6 +47,8 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, is_aux=False)
     processor = processors[task]()
     output_mode = output_modes[task]
     # Load data features from cache or dataset file
+    # 如果需要在数据处理阶段就进行数据处理的截取，那么需要传入数据的最大长度
+    processor.max_seq_length = args.max_seq_length
     cached_features_file = os.path.join(data_dir, 'cached_{}_{}_{}'.format(
         'dev' if evaluate else 'train',
         str(args.max_seq_length),

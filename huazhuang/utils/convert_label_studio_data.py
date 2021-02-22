@@ -206,7 +206,7 @@ def format_data(data):
     """
     整理数据，只保留需要的字段
     :param data:
-    :return:[(text, keyword, start_idx, end_idx, label)]
+    :return:[(text, keyword, start_idx, end_idx, label,channel,wordtype)]
     """
     newdata = []
     #多人标注的条数, 一共多人标注的条数
@@ -258,7 +258,6 @@ def format_data(data):
             newdata.append(new)
     print(f"处理完成后的数据总数是{len(newdata)}, 存在{repeats_completions}多人标注的数据, 标注不一致的数据有{not_same_label_num}条")
     return newdata
-
 
 def analysis_data(data):
     """
@@ -319,7 +318,7 @@ def colect_weibo(save_file="../data_root_dir/cosmetics/all.txt", filter_english_
     收集微博的训练数据
     :param save_file:
     :param filter_english_keyword: 是否过滤掉包含英文和数字字符的keyword
-    :return: 存储到文件
+    :return: 存储到文件, [(text, keyword, start_idx, end_idx, label, channel, type),...]
     """
     # 原始文件中的sScore的映射方式
     class2id = {
@@ -354,7 +353,7 @@ def colect_weibo(save_file="../data_root_dir/cosmetics/all.txt", filter_english_
             aspectTerm_insentence = "".join(text[start:end])
             if not keyword == aspectTerm_insentence:
                 raise Exception(f"单词在句子中位置对应不上，请检查,句子行数{idx}, 句子是{line_chinese}")
-            one = (text, keyword, start, end, label)
+            one = (text, keyword, start, end, label, 'weibo', '品牌')
             data.append(one)
     print(f"总数据量是{len(data)}")
     return data
@@ -445,6 +444,25 @@ def get_all_and_weibo_75():
     data = format_data(data)
     original_data, truncate_data, locations = do_truncate_data(data)
     train_data, dev_data = split_data_dev(data=truncate_data, save_path="../data_root_dir/newcos",weibodata=weibo_data_truncate)
+
+def get_all_and_weibo():
+    """
+    不要做truncate，仅保留原文本, 保存到新的位置cosmetrics, 使用不太相同的训练方法
+    :return:
+    """
+    weibo_data = colect_weibo(filter_english_keyword=True)
+    data = collect_json(dirpath="/opt/lavector/absa")
+    studio_data = format_data(data)
+    train_data, dev_data = split_data_dev(data=studio_data, save_path="../data_root_dir/cosmetics",weibodata=weibo_data)
+
+def get_all():
+    """
+    不要做truncate，仅保留原文本
+    :return:
+    """
+    data = collect_json(dirpath="/opt/lavector/absa")
+    studio_data = format_data(data)
+    train_data, dev_data = split_data_dev(data=studio_data, save_path="../data_root_dir/cosmetics")
 
 def get_all_and_weibo_75_mini():
     """
@@ -610,7 +628,8 @@ if __name__ == '__main__':
     # model_filter_again()
     # data = collect_json(dirpath="/opt/lavector/absa")
     # data = format_data(data)
-    get_components_75()
+    # get_components_75()
     # data = db2local(use_cache=False)
     # dopredict_albert(host="127.0.0.1", data=data)
     # result = dopredict_albert(host="192.168.50.139", data=data)
+    get_all_and_weibo()

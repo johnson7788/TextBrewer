@@ -269,6 +269,6 @@ if __name__ == '__main__':
     # read_result_online()
     # download_data_and_compare()
     # download_data_and_compare(hostname=["http://192.168.50.139:8086/api/"], dirpath="/opt/lavector/components/", jsonfile= ["192.168.50.139_500_8086_0129.json"],isabsa=False)
-    download_data_and_compare(hostname=["http://192.168.50.139:8081/api/"], dirpath="/opt/lavector/absa/", jsonfile= ["192.168.50.139_500_8081_0205.json"],isabsa=True)
+    download_data_and_compare(hostname=["http://192.168.50.139:8081/api/"], dirpath="/opt/lavector/absa/", jsonfile= ["192.168.50.139_500_8081_0220.json"],isabsa=True)
     # get_json_data_compare()
     # download_data_and_compare_same()

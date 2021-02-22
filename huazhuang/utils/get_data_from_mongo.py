@@ -256,9 +256,9 @@ def conver_embedding_file():
 if __name__ == '__main__':
     save_file = "../data_root_dir/cosmetics/all.txt"
     new_file = "../data_root_dir/cosmetics/final_all.txt"
-    # db2local(save_file)
-    textsentiment_process(save_file, new_file)
-    split_all(new_file, train_rate=0.9, test_rate=0.1)
+    db2local(save_file)
+    # textsentiment_process(save_file, new_file)
+    # split_all(new_file, train_rate=0.9, test_rate=0.1)
     # check_data(save_file)
     # clean_cache()
     # conver_embedding_file()
