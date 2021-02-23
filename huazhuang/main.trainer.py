@@ -203,7 +203,7 @@ def main():
         else:
             state_weight = {k[5:]:v for k,v in state_dict_S.items() if k.startswith('bert.')}
             missing_keys,_ = model_S.bert.load_state_dict(state_weight,strict=False)
-            assert len(missing_keys)==0
+            print(f"missing_keys，注意丢失的参数{missing_keys}")
         logger.info("Model loaded")
     elif args.load_model_type=='all':
         assert args.tuned_checkpoint_S is not None

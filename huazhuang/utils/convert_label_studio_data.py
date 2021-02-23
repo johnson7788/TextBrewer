@@ -256,7 +256,7 @@ def format_data(data):
             label = res['value']['labels'][0]
             new = (text,keyword,start_idx,end_idx,label,channel,wordtype)
             newdata.append(new)
-    print(f"处理完成后的数据总数是{len(newdata)}, 存在{repeats_completions}多人标注的数据, 标注不一致的数据有{not_same_label_num}条")
+    print(f"处理完成后的数据总数是{len(newdata)}, 存在{repeats_completions}条多人标注的数据, 标注不一致的数据有{not_same_label_num}条")
     return newdata
 
 def analysis_data(data):
@@ -632,4 +632,5 @@ if __name__ == '__main__':
     # data = db2local(use_cache=False)
     # dopredict_albert(host="127.0.0.1", data=data)
     # result = dopredict_albert(host="192.168.50.139", data=data)
-    get_all_and_weibo()
+    # get_all_and_weibo()
+    get_all()

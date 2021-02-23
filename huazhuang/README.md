@@ -103,9 +103,39 @@ python main.trainer.py --model_architecture electra --vocab_file electra_model/v
 ```
 python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/newcos --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S mac_bert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/newcos --gradient_accumulation_steps 1 --task_name newcos --output_att_sum false --output_encoded_layers false --output_attention_layers false
 模型保存为gs{global_step}.pkl 格式
+2021/02/22 10:03:26 - INFO - Main -  task:,newcos
+2021/02/22 10:03:26 - INFO - Main -  result: {'acc': 0.7854368932038835}
+2021/02/22 10:03:26 - INFO - Main -  ***** Eval results 3123 task newcos *****
+2021/02/22 10:03:26 - INFO - Main -  acc = 0.7854368932038835
+step: 1041 ****
+ acc = 0.775242718446602
+step: 2082 ****
+ acc = 0.7762135922330097
+step: 3123 ****
+ acc = 0.7854368932038835
+step: 4164 ****
+ acc = 0.7844660194174757
+step: 5205 ****
+ acc = 0.7844660194174757
 
-#使用cosmetics的数据集和处理方法
+#使用cosmetics的数据集和处理方法, 与newcos的处理方法不一样, 性能提升了，说明我们的数据处理方法是不错的
 python main.trainer.py --vocab_file mac_bert_model/vocab.txt --data_dir data_root_dir/cosmetics --bert_config_file_T none --bert_config_file_S mac_bert_model/config.json --init_checkpoint_S mac_bert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/cosmetics --gradient_accumulation_steps 1 --task_name cosmetics --output_att_sum false --output_encoded_layers false --output_attention_layers false
+2021/02/22 09:36:44 - INFO - Main -  task:,cosmetics
+2021/02/22 09:36:44 - INFO - Main -  result: {'acc': 0.7946328736489005}
+2021/02/22 09:36:44 - INFO - Main -  ***** Eval results 6870 task cosmetics *****
+2021/02/22 09:36:44 - INFO - Main -  acc = 0.7946328736489005
+step: 1145 ****
+ acc = 0.7931420052180395
+step: 2290 ****
+ acc = 0.806187103988073
+step: 3435 ****
+ acc = 0.7987327618337682
+step: 4580 ****
+ acc = 0.8020872158032054
+step: 5725 ****
+ acc = 0.7886693999254566
+step: 6870 ****
+ acc = 0.7946328736489005
 ```
 
 ## 步骤2
