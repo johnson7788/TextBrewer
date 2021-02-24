@@ -394,7 +394,6 @@ def dopredict_macbert(data, host="127.0.0.1"):
     r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
     return r.json()
 
-
 def model_filter_again():
     """
     用模型筛选出所有预测错误的样本，重新检查
@@ -620,6 +619,58 @@ def mongo_res_to_excel(mongo_res="mongo.res"):
     """
     pass
 
+def save2mongo():
+    """
+    保存数据到mongo
+    :param data:
+    :return:
+    """
+    import pymongo
+    studio_data = collect_json(dirpath="/opt/lavector/absa")
+    data = format_data(studio_data)
+    client = pymongo.MongoClient("192.168.50.139", 27017)
+    # 设置database
+    db = client['ai-corpus']
+    # 选择哪个collections
+    collection = db['as_corpus']
+    class2id = {
+        "消极": 0,
+        "中性": 1,
+        "积极": 2,
+    }
+    before_num = collection.count()
+    print(f"数据库中已有数据{before_num}条, 待插入数据{len(data)}条")
+    mdata = []
+    for one in data:
+        text, keyword, start_idx, end_idx, label, channel, wordtype = one
+        label_id = class2id[label]
+        one_data = {
+    "fileName" : "unknown",
+    "content" : text,
+    "start" : 0,
+    "end" : len(text),
+    "aspect" : [
+            {
+                "aspectTermId" : "T1",
+                "aspectTerm" : wordtype,
+                "aspectCategory" : "单个对象",
+                "start" : start_idx,
+                "end" : end_idx,
+                "sScore" : label_id,
+                "contentAspectTerm" : keyword
+            }
+        ],
+        "source" : channel,
+        "industry" : "美妆",
+        "brand" : "unknown",
+        "batchId" : "20210224",
+    }
+        mdata.append(one_data)
+    print(f"待插入数据整理后{len(mdata)}条")
+    collection.insert_many(mdata)
+    after_num = collection.count()
+    print(f"插入后数据有{after_num},共插入数据{after_num-before_num}")
+
 if __name__ == '__main__':
     # get_all_and_weibo_105()
     # get_all_and_weibo_75_mini()
@@ -633,4 +684,5 @@ if __name__ == '__main__':
     # dopredict_albert(host="127.0.0.1", data=data)
     # result = dopredict_albert(host="192.168.50.139", data=data)
     # get_all_and_weibo()
-    get_all()
+    # get_all()
+    save2mongo()
