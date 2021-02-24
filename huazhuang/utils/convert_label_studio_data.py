@@ -41,14 +41,16 @@ def saveto_excel():
     保存collect_json的数据到excel
     :return:
     """
-    output_file = "output.xlsx"
-    data = collect_json(dirpath="/opt/lavector/absa")
-    data = format_data(data)
-    df = pd.DataFrame(data,columns=['Text','Keyword', 'Start', 'End', 'Label'])
+    output_file = "export.xlsx"
     writer = pd.ExcelWriter(output_file, engine='xlsxwriter')
-    df.to_excel(writer, sheet_name='table1')
+    #得到的数据 (text, keyword, start_idx, end_idx, label,channel,wordtype)
+    data,cancel_data = get_all(absa=False, keep_cancel=True, split=False)
+    df = pd.DataFrame(data,columns=['Text','Keyword', 'Start', 'End', 'Label', 'channel', 'wordtype'])
+    df.to_excel(writer, sheet_name='标注数据')
+    df1 = pd.DataFrame(cancel_data,columns=['Text','Keyword', 'Start', 'End', 'Label', 'channel', 'wordtype'])
+    df1.to_excel(writer, sheet_name='取消数据')
     writer.save()
-    print(f"保存到excel{output_file}完成")
+    print(f"保存到excel: {output_file}完成")
 
 
 def truncate(input_text, max_len, trun_post='post'):
@@ -202,13 +204,16 @@ def split_data_dev(data, save_path, train_rate=0.8, dev_rate=0.2, weibodata=None
     return train_data, dev_data
 
 
-def format_data(data):
+def format_data(data, keep_cancel=False):
     """
     整理数据，只保留需要的字段
-    :param data:
+    :param data:,
+    :param keep_cancel: 是否返回cancel的数据，如果是True，那么返回data, cancel_data，否则返回data
     :return:[(text, keyword, start_idx, end_idx, label,channel,wordtype)]
     """
     newdata = []
+    #未标注，取消标注的数据
+    cancel_data = []
     #多人标注的条数, 一共多人标注的条数
     repeats_completions = 0
     #多人标注时，不一致的数量
@@ -229,35 +234,56 @@ def format_data(data):
                 print("标注的数量不匹配, 不会造成影响，例如句子中有2个词，我们只标注了一个词")
         #一句话中的多个标注结果
         #如果有多个标注结果，对比下标注结果，把不同的打印出来,
+        canceled = []
+        # if len(one['completions']) >1:
+        # print(f"标注结果大于1个，打印出来，只打印出2个人标注完全不一样的结果")
+        unique = {}
+        #存储不被取消和没有重复的标注的数据
+        results = []
+        #多人标注数据统计
         if len(one['completions']) >1:
-            # print(f"标注结果大于1个，打印出来，只打印出2个人标注完全不一样的结果")
-            unique = {}
-            for completion in one['completions']:
-                repeats_completions += 1
-                for res in completion['result']:
-                    start_idx = res['value']['start']
-                    end_idx = res['value']['end']
-                    label = res['value']['labels'][0]
-                    unique_sentence_idx = f"{str(start_idx):{str(end_idx)}}"
-                    unique_sentence_label= f"{label}:{keyword}"
-                    if unique_sentence_idx in unique.keys():
-                        if unique_sentence_label != unique[unique_sentence_idx]:
-                            print(f"2个人标注的数据不一致, 句子为:{text}   标注的单词位置: {start_idx}-{end_idx}   一个标注为:{unique[unique_sentence_idx]}  另一个标注为:{unique_sentence_label}")
-                            not_same_label_num += 1
-                        else:
-                            # 2个人标注的一致,忽略
-                            continue
+            repeats_completions +=1
+        for completion in one['completions']:
+            if completion.get("was_cancelled"):
+                canceled.extend(completion['result'])
+                continue
+            for res in completion['result']:
+                start_idx = res['value']['start']
+                end_idx = res['value']['end']
+                label = res['value']['labels'][0]
+                unique_sentence_idx = f"{str(start_idx):{str(end_idx)}}"
+                unique_sentence_label= f"{label}:{keyword}"
+                if unique_sentence_idx in unique.keys():
+                    if unique_sentence_label != unique[unique_sentence_idx]:
+                        print(f"2个人标注的数据不一致, 句子为:{text}   标注的单词位置: {start_idx}-{end_idx}   一个标注为:{unique[unique_sentence_idx]}  另一个标注为:{unique_sentence_label},标注不一致的被丢弃")
+                        not_same_label_num += 1
                     else:
-                        unique[unique_sentence_idx] = unique_sentence_label
-        results = one['completions'][0]['result']
-        for res in results:
+                        # 2个人标注的一致,忽略
+                        print(f"2个人标注的数据一致,标注了多次,句子为:{text}   标注的单词位置: {start_idx}-{end_idx}   标注为:{unique[unique_sentence_idx]}")
+                        continue
+                else:
+                    unique[unique_sentence_idx] = unique_sentence_label
+                    results.append(res)
+        if canceled:
+            #如果canceled有数据，那么整个数据都不要了，直接cancel, 那么我们保留一个cancel数据就可以了
+            res = canceled[0]
             start_idx = res['value']['start']
             end_idx = res['value']['end']
-            label = res['value']['labels'][0]
-            new = (text,keyword,start_idx,end_idx,label,channel,wordtype)
-            newdata.append(new)
-    print(f"处理完成后的数据总数是{len(newdata)}, 存在{repeats_completions}条多人标注的数据, 标注不一致的数据有{not_same_label_num}条")
-    return newdata
+            label = "CANCELLED"
+            new = (text, keyword, start_idx, end_idx, label, channel, wordtype)
+            cancel_data.append(new)
+        else:
+            for res in results:
+                start_idx = res['value']['start']
+                end_idx = res['value']['end']
+                label = res['value']['labels'][0]
+                new = (text,keyword,start_idx,end_idx,label,channel,wordtype)
+                newdata.append(new)
+    print(f"处理完成后的数据总数是{len(newdata)}, 存在{repeats_completions}条多人标注的数据, 标注不一致的数据有{not_same_label_num}条, 被跳过的数据有{len(cancel_data)}")
+    if keep_cancel:
+        return newdata, cancel_data
+    else:
+        return newdata
 
 def analysis_data(data):
     """
@@ -454,14 +480,20 @@ def get_all_and_weibo():
     studio_data = format_data(data)
     train_data, dev_data = split_data_dev(data=studio_data, save_path="../data_root_dir/cosmetics",weibodata=weibo_data)
 
-def get_all():
+def get_all(absa=True, keep_cancel=False, split=True):
     """
     不要做truncate，仅保留原文本
     :return:
     """
-    data = collect_json(dirpath="/opt/lavector/absa")
-    studio_data = format_data(data)
-    train_data, dev_data = split_data_dev(data=studio_data, save_path="../data_root_dir/cosmetics")
+    if absa:
+        dirpath = "/opt/lavector/absa"
+    else:
+        dirpath = "/opt/lavector/components"
+    data = collect_json(dirpath)
+    studio_data = format_data(data,keep_cancel)
+    if split:
+        train_data, dev_data = split_data_dev(data=studio_data, save_path="../data_root_dir/cosmetics")
+    return studio_data
 
 def get_all_and_weibo_75_mini():
     """
@@ -645,31 +677,35 @@ def save2mongo():
         text, keyword, start_idx, end_idx, label, channel, wordtype = one
         label_id = class2id[label]
         one_data = {
-    "fileName" : "unknown",
-    "content" : text,
-    "start" : 0,
-    "end" : len(text),
-    "aspect" : [
-            {
-                "aspectTermId" : "T1",
-                "aspectTerm" : wordtype,
-                "aspectCategory" : "单个对象",
-                "start" : start_idx,
-                "end" : end_idx,
-                "sScore" : label_id,
-                "contentAspectTerm" : keyword
-            }
-        ],
+        "fileName" : "unknown",
+        "content" : text,
+        "start" : 0,
+        "end" : len(text),
+        "aspect" : [
+                {
+                    "aspectTermId" : "T1",
+                    "aspectTerm" : wordtype,
+                    "aspectCategory" : "单个对象",
+                    "start" : start_idx,
+                    "end" : end_idx,
+                    "sScore" : label_id,
+                    "contentAspectTerm" : keyword
+                }
+            ],
         "source" : channel,
         "industry" : "美妆",
         "brand" : "unknown",
         "batchId" : "20210224",
+        "createTime": "2021-02-24 10:47:48",
+        "updateTime": "2021-02-24 10:47:48"
     }
         mdata.append(one_data)
     print(f"待插入数据整理后{len(mdata)}条")
     collection.insert_many(mdata)
     after_num = collection.count()
     print(f"插入后数据有{after_num},共插入数据{after_num-before_num}")
+
+
 
 if __name__ == '__main__':
     # get_all_and_weibo_105()
@@ -684,5 +720,6 @@ if __name__ == '__main__':
     # dopredict_albert(host="127.0.0.1", data=data)
     # result = dopredict_albert(host="192.168.50.139", data=data)
     # get_all_and_weibo()
-    # get_all()
-    save2mongo()
+    # get_all(absa=False, keep_cancel=True)
+    # save2mongo()
+    saveto_excel()
