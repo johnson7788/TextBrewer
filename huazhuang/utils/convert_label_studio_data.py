@@ -492,7 +492,10 @@ def get_all(absa=True, keep_cancel=False, split=True):
     data = collect_json(dirpath)
     studio_data = format_data(data,keep_cancel)
     if split:
-        train_data, dev_data = split_data_dev(data=studio_data, save_path="../data_root_dir/cosmetics")
+        if absa:
+            train_data, dev_data = split_data_dev(data=studio_data, save_path="../data_root_dir/cosmetics")
+        else:
+            train_data, dev_data = split_data_dev(data=studio_data, save_path="../data_root_dir/components")
     return studio_data
 
 def get_all_and_weibo_75_mini():
@@ -775,4 +778,5 @@ if __name__ == '__main__':
     # get_all(absa=False, keep_cancel=True)
     # save2mongo()
     # saveto_excel()
-    save2mongo_components()
+    # save2mongo_components()
+    get_all(absa=False)

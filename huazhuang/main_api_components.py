@@ -83,7 +83,7 @@ def load_examples(contents, max_seq_length, tokenizer, label_list):
     return dataset
 
 
-class TorchAsBertModel(object):
+class TorchComBertModel(object):
     def __init__(self, verbose=0):
         self.verbose = verbose
         self.label_list = ["是", "否"]
@@ -543,5 +543,5 @@ def train_truncate():
 
 
 if __name__ == "__main__":
-    model = TorchAsBertModel()
+    model = TorchComBertModel()
     app.run(host='0.0.0.0', port=5010, debug=True, threaded=True)
