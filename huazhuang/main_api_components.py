@@ -153,7 +153,7 @@ class TorchComBertModel(object):
         self.train_model = model_S
         logger.info(f"训练模型{self.tuned_checkpoint_S}加载完成")
 
-    def load_predict_model(self, model_file="trained_teacher_model/test_components.pkl"):
+    def load_predict_model(self, model_file="trained_teacher_model/components_albert.pkl"):
         parser = argparse.ArgumentParser()
         args = parser.parse_args()
         args.output_encoded_layers = True
@@ -531,7 +531,7 @@ def predict():
     jsonres = request.get_json()
     test_data = jsonres.get('data', None)
     # model = TorchAsBertModel()
-    results = model.predict_batch(test_data, truncated=True)
+    results = model.predict_batch(test_data, truncated=False)
     logger.info(f"收到的数据是:{test_data}")
     logger.info(f"预测的结果是:{results}")
     return jsonify(results)

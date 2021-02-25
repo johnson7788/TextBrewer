@@ -59,7 +59,7 @@ def dopredict_albert(host="127.0.0.1", data=None):
     # testfile = "data_root_dir/newcos/dev.json"
     # with open(testfile, 'r') as f:
     #     data = json.load(f)
-    url = f"http://{host}:5010/api/predict"
+    url = f"http://{host}:5010/api/predict_truncate"
     data = {'data': data}
     headers = {'content-type': 'application/json'}
     r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
@@ -76,5 +76,5 @@ if __name__ == '__main__':
     # dopredict_macbert(host="192.168.50.119")
     # dopredict(host="127.0.0.1", test_data=test_data)
     # dopredict(host="127.0.0.1", test_data=test_data)
-    # dopredict_albert(data=test_data)
+    dopredict_albert(data=test_data)
     # dopredict_albert()
