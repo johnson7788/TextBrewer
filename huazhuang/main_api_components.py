@@ -99,6 +99,7 @@ class TorchComBertModel(object):
         self.left_max_seq_len = 25
         self.right_max_seq_len = 25
         self.aspect_max_seq_len = 30
+        self.max_seq_length = 70
         self.load_predict_model()
         # self.load_macbert_model()
         # self.load_train_model()
@@ -135,7 +136,6 @@ class TorchComBertModel(object):
         self.vocab_file = "albert_model/vocab.txt"
         self.bert_config_file_S = "albert_model/config.json"
         self.tuned_checkpoint_S = "albert_model/pytorch_model.bin"
-        self.max_seq_length = 70
         # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
         bert_config_S = AlbertConfig.from_json_file(self.bert_config_file_S)
 
@@ -168,7 +168,6 @@ class TorchComBertModel(object):
         # distil student model:  distil_model/gs8316.pkl
         self.bert_config_file_S = "albert_model/config.json"
         self.tuned_checkpoint_S = model_file
-        self.max_seq_length = 70
         # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
         bert_config_S = AlbertConfig.from_json_file(self.bert_config_file_S)
         bert_config_S.num_labels = self.num_labels
@@ -201,7 +200,6 @@ class TorchComBertModel(object):
         # distil student model:  distil_model/gs8316.pkl
         self.bert_config_file_S = "mac_bert_model/config.json"
         self.tuned_checkpoint_S = "trained_teacher_model/macbert_teacher_max75len_5000.pkl"
-        self.max_seq_length = 70
         # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
         bert_config_S = AlbertConfig.from_json_file(self.bert_config_file_S)
 
@@ -285,6 +283,98 @@ class TorchComBertModel(object):
             else:
                 raise Exception(f"这条数据异常: {one_data},数据长度或者为2, 4，或者为5")
         return contents, locations
+    def do_truncate_special(self, data):
+        """
+        对数据做truncate的第二种方法
+        :param data:针对不同类型的数据进行不同的截断
+        :return:返回列表，是截断后的文本，aspect
+        所以如果一个句子中有多个aspect关键字，那么就会产生多个截断的文本+关键字，组成的列表，会产生多个预测结果
+        """
+        def aspect_truncate(content, keyword, start_idx, end_idx):
+            """
+            截断函数
+            :param content:
+            :param keyword:
+            :param start_idx:
+            :param end_idx:
+            :return: newcontent
+            """
+            SPECIAL = '_'
+            # 计算下texta的真正的应该保留的长度，-3是减去CLS,SEP,SEP，这3个special的token
+            max_texta_length = self.max_seq_length - len(keyword) - 3
+            # 我们尝试在原句子中MASK掉关键字,但如果句子长度大于我们模型中的最大长度，我们需要截断
+            texta_list = list(content)
+            texta_list.insert(start_idx, SPECIAL)
+            texta_list.insert(end_idx + 1, SPECIAL)
+            texta_special = ''.join(texta_list)
+            special_keyword = SPECIAL + keyword + SPECIAL
+            # 开始检查长度, 如果长度大于最大序列长度，我们要截取关键字上下的句子，直到满足最大长度以内,截取时用句子分隔的方式截取
+            if len(texta_special) > max_texta_length:
+                # 需要对texta进行阶段,采取怎样的截断方式更合适,按逗号和句号和冒号分隔
+                texta_split = re.split('[，。：]', texta_special)
+                # 确定keyword在列表中的第几个元素中
+                special_keyword_idx = 0
+                for t_idx, t in enumerate(texta_split):
+                    if special_keyword in t:
+                        special_keyword_idx = t_idx
+                # 先从距离special_keyword_idx最远的地方的句子开始去掉，直到满足序列长度小于max_seq_length, 也要考虑添加逗号后的长度，所以要减去元素个数max_texta_length-len(texta_split)+1
+                while len(texta_split) > 1 and sum(len(t) for t in texta_split) > (
+                        max_texta_length - len(texta_split) + 1):
+                    # 选择从列表的左面弹出句子还是，右面弹出句子, 极端情况是只有2个句子，special_keyword_idx在第一个句子中，那么应该弹出第二个句子
+                    if len(texta_split) / 2 - special_keyword_idx >= 0:
+                        # special_keyword_idx在列表的左半部分，应该从后面弹出句子
+                        texta_split.pop()
+                    else:
+                        # 从列表的开头弹出句子
+                        texta_split.pop(0)
+                # 如果仅剩一个句子了，长度仍然大于最大长度, 那么只好强制截断了, 如果关键字中有，。：,那么也是有问题的，只好强制截断
+                key_symbol = False
+                for symbol in ['，', '。', '：']:
+                    if symbol in keyword:
+                        key_symbol = True
+                if (len(texta_split) == 1 and len(texta_split[0]) > max_texta_length) or key_symbol:
+                    left_text = texta_special[:start_idx]
+                    right_text = texta_special[end_idx + 2:]
+                    # 如果左侧长度大于max_texta_length的一半，那么截断
+                    keep_length = int((max_texta_length - len(keyword)) / 2)
+                    if len(left_text) > keep_length:
+                        left_text = left_text[-keep_length:]
+                    if len(right_text) > keep_length:
+                        right_text = right_text[:keep_length]
+                    text_a = left_text + special_keyword + right_text
+                else:
+                    text_a = '，'.join(texta_split)
+            else:
+                text_a = texta_special
+            return text_a
+
+        contents = []
+        #保存关键字的索引，[(start_idx, end_idx)...]
+        locations = []
+        for one_data in data:
+            if len(one_data) == 2:
+                #不带aspect关键字的位置信息，自己查找位置
+                content, aspect = one_data
+                iter = re.finditer(aspect, content)
+                for m in iter:
+                    aspect_start, aspect_end = m.span()
+                    new_content = aspect_truncate(content, aspect, aspect_start, aspect_end)
+                    contents.append((new_content, aspect))
+                    locations.append((aspect_start,aspect_end))
+            elif len(one_data) == 4:
+                # 不带label时，长度是4，
+                content, aspect, aspect_start, aspect_end = one_data
+                new_content = aspect_truncate(content, aspect, aspect_start,aspect_end)
+                contents.append((new_content, aspect))
+                locations.append((aspect_start, aspect_end))
+            elif len(one_data) == 5:
+                content, aspect, aspect_start, aspect_end, label = one_data
+                new_content = aspect_truncate(content, aspect, aspect_start, aspect_end)
+                contents.append((new_content, aspect, label))
+                locations.append((aspect_start, aspect_end))
+            else:
+                raise Exception(f"这条数据异常: {one_data},数据长度或者为2, 4，或者为5")
+        return contents, locations
 
     def compute_metrics(self, predid, labelid):
         """
@@ -306,7 +396,7 @@ class TorchComBertModel(object):
         if model_file:
             self.load_predict_model(model_file=model_file)
         if truncated:
-            data, locations = self.do_truncate_data(data)
+            data, locations = self.do_truncate_special(data)
         eval_dataset = load_examples(data, self.max_seq_length, self.predict_tokenizer, self.label_list)
         if self.verbose:
             print("评估数据集已加载")
@@ -441,7 +531,7 @@ def predict():
     jsonres = request.get_json()
     test_data = jsonres.get('data', None)
     # model = TorchAsBertModel()
-    results = model.predict_batch(test_data)
+    results = model.predict_batch(test_data, truncated=True)
     logger.info(f"收到的数据是:{test_data}")
     logger.info(f"预测的结果是:{results}")
     return jsonify(results)
@@ -489,7 +579,7 @@ def predict_truncate_model():
 @app.route("/api/predict_albert", methods=['POST'])
 def predict_albert():
     """
-    加载macbert模型，返回预测结果
+    加载albert, 如果需要accuracy，那么需要传入labeled的数据
     接收POST请求，获取data参数, data信息包含aspect关键在在句子中的位置信息，方便我们截取，我们截取aspect关键字的前后一定的字符作为输入
     例如关键字前后的25个字作为sentenceA，aspect关键字作为sentenceB，输入模型
     Args:
@@ -499,9 +589,11 @@ def predict_albert():
     """
     jsonres = request.get_json()
     test_data = jsonres.get('data', None)
+    if test_data is None:
+        return jsonify("收到的数据为None，请检查")
     # model = TorchAsBertModel()
     # model.load_predict_model()
-    results, accuracy = model.predict_batch(test_data, truncated=False, print_acc=True)
+    results, accuracy = model.predict_batch(test_data, truncated=True, print_acc=True)
     logger.info(f"收到的数据是:{test_data}")
     logger.info(f"预测的结果是:{results}")
     logger.info(f"模型准确率为:{accuracy}")
