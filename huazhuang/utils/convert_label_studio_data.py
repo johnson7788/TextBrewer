@@ -595,7 +595,7 @@ def db2local(save_file="/opt/lavector/components/json.mongo", collect='label_cor
     """
     从MongoDB 获取数据，保存到save_file中, mongo结果， 模型准确率为:0.6782511210762332
     :param save_file:
-    :param collect: label_corpus 获取a s_corpus
+    :param collect: label_corpus 获取成分的词的标注
     :return:
     """
     # 配置client, 如果存在，并且使用cache，那么直接返回结果
@@ -651,7 +651,7 @@ def mongo_res_to_excel(mongo_res="mongo.res"):
     """
     pass
 
-def save2mongo():
+def save2mongo_absa():
     """
     保存数据到mongo
     :param data:
@@ -705,6 +705,58 @@ def save2mongo():
     after_num = collection.count()
     print(f"插入后数据有{after_num},共插入数据{after_num-before_num}")
 
+def save2mongo_components():
+    """
+    保存成分数据到mongo
+    :param data:
+    :return:
+    """
+    import pymongo
+    studio_data = collect_json(dirpath="/opt/lavector/components")
+    data = format_data(studio_data)
+    client = pymongo.MongoClient("192.168.50.139", 27017)
+    # 设置database
+    db = client['ai-corpus']
+    # 选择哪个collections
+    collection = db['label_corpus']
+    class2id = {
+        "是": "T",
+        "否": "F",
+    }
+    before_num = collection.count()
+    print(f"数据库中已有数据{before_num}条, 待插入数据{len(data)}条")
+    mdata = []
+    for one in data:
+        text, keyword, start_idx, end_idx, label, channel, wordtype = one
+        label_id = class2id[label]
+        one_data = {
+        "content" : text,
+        "start" : 0,
+        "end" : len(text),
+        "aspect" : [
+            {
+                "aspectTermId" : "T1",
+                "id" : 1,
+                "aspectTerm" : keyword,
+                "aspectCategory" : wordtype,
+                "start" : start_idx,
+                "end" : end_idx,
+                "bratLabel" : label_id
+            }
+        ],
+        "fileName" : "",
+        "source" : channel,
+        "industry" : "mz",
+        "brand" : "",
+        "batchId" : "20210225",
+        "createTime" : "2021-02-25 09:32:37",
+        "updateTime" : "2021-02-25 09:32:37"
+    }
+        mdata.append(one_data)
+    print(f"待插入数据整理后{len(mdata)}条")
+    collection.insert_many(mdata)
+    after_num = collection.count()
+    print(f"插入后数据有{after_num},共插入数据{after_num-before_num}")
 
 
 if __name__ == '__main__':
@@ -722,4 +774,5 @@ if __name__ == '__main__':
     # get_all_and_weibo()
     # get_all(absa=False, keep_cancel=True)
     # save2mongo()
-    saveto_excel()
+    # saveto_excel()
+    save2mongo_components()

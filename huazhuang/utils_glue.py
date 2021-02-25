@@ -310,11 +310,57 @@ class NewComponentsProcessor(MnliProcessor):
     def _create_examples(self, lines, set_type):
         """处理label-studio收到的数据"""
         examples = []
+        #把句子中的关键字围起来,
+        SPECIAL = '_'
         for idx, line in enumerate(lines):
+            texta, keyword, start_idx, end_idx, label, _, _ = line
+            #计算下texta的真正的应该保留的长度，-3是减去CLS,SEP,SEP，这3个special的token
+            max_texta_length = self.max_seq_length - len(keyword) - 3
             guid = "%s-%s" % (set_type, idx)
-            text_a = line[0]
-            text_b = line[1]
-            label = line[2]
+            # 我们尝试在原句子中MASK掉关键字,但如果句子长度大于我们模型中的最大长度，我们需要截断
+            texta_list = list(texta)
+            texta_list.insert(start_idx, SPECIAL)
+            texta_list.insert(end_idx + 1, SPECIAL)
+            texta_special = ''.join(texta_list)
+            special_keyword = SPECIAL+ keyword + SPECIAL
+            #开始检查长度, 如果长度大于最大序列长度，我们要截取关键字上下的句子，直到满足最大长度以内,截取时用句子分隔的方式截取
+            if len(texta_special) > max_texta_length:
+                #需要对texta进行阶段,采取怎样的截断方式更合适,按逗号和句号和冒号分隔
+                texta_split = re.split('[，。：]', texta_special)
+                #确定keyword在列表中的第几个元素中
+                special_keyword_idx = 0
+                for t_idx, t in enumerate(texta_split):
+                    if special_keyword in t:
+                        special_keyword_idx = t_idx
+                #先从距离special_keyword_idx最远的地方的句子开始去掉，直到满足序列长度小于max_seq_length, 也要考虑添加逗号后的长度，所以要减去元素个数max_texta_length-len(texta_split)+1
+                while len(texta_split) > 1 and sum(len(t) for t in texta_split) > (max_texta_length-len(texta_split)+1):
+                    #选择从列表的左面弹出句子还是，右面弹出句子, 极端情况是只有2个句子，special_keyword_idx在第一个句子中，那么应该弹出第二个句子
+                    if len(texta_split)/2 - special_keyword_idx >=0:
+                        #special_keyword_idx在列表的左半部分，应该从后面弹出句子
+                        texta_split.pop()
+                    else:
+                        #从列表的开头弹出句子
+                        texta_split.pop(0)
+                # 如果仅剩一个句子了，长度仍然大于最大长度, 那么只好强制截断了, 如果关键字中有，。：,那么也是有问题的，只好强制截断
+                key_symbol = False
+                for symbol in ['，','。','：']:
+                    if symbol in keyword:
+                        key_symbol = True
+                if (len(texta_split) == 1 and len(texta_split[0]) > max_texta_length) or key_symbol:
+                    left_text = texta_special[:start_idx]
+                    right_text = texta_special[end_idx+2:]
+                    #如果左侧长度大于max_texta_length的一半，那么截断
+                    keep_length = int((max_texta_length - len(keyword)) / 2)
+                    if len(left_text) > keep_length:
+                        left_text = left_text[-keep_length:]
+                    if len(right_text) > keep_length:
+                        right_text = right_text[:keep_length]
+                    text_a = left_text + special_keyword + right_text
+                else:
+                    text_a = '，'.join(texta_split)
+            else:
+                text_a = texta_special
+            text_b = keyword
             examples.append(
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
