@@ -6,6 +6,7 @@
 # @Contact : github: johnson7788
 # @Desc  :
 import json
+import os
 import pandas as pd
 import requests
 
@@ -117,7 +118,7 @@ def read_result_online():
     print(f"共有{total}个不一样, 75个字预测的结果是{predict_yes}, 线上65个字的预测结果是{online_yes}")
 
 
-def dopredict(test_data, url="http://127.0.0.1:5000/api/predict_macbert"):
+def dopredict(test_data, url="http://127.0.0.1:5000/api/predict_macbert", proxy=True):
     """
     预测结果
     :param test_data:
@@ -125,29 +126,39 @@ def dopredict(test_data, url="http://127.0.0.1:5000/api/predict_macbert"):
     """
     data = {'data': test_data}
     headers = {'content-type': 'application/json'}
-    r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
+    if proxy:
+        r = requests.post(url, data=json.dumps(data), headers=headers, timeout=360,
+                           proxies=dict(http='socks5://127.0.0.1:9080', https='socks5://127.0.0.1:9080'))
+    else:
+        r = requests.post(url, headers=headers, data=json.dumps(data),  timeout=360)
     return r.json()
 
-def download_data_and_compare(hostname=["http://192.168.50.139:8081/api/"], dirpath="/opt/lavector/absa/", jsonfile=["192.168.50.139_500_8081_0129.json"], isabsa=True):
+def download_data_and_compare(hostname=["http://192.168.50.139:8081/api/"], dirpath="/opt/lavector/absa/", jsonfile=["192.168.50.139_500_8081_0129.json"], isabsa=True, usecache=True):
     """
     从label_studio的某个hostname下载数据，然后预测，最后给出结果
     :return:
     """
     from absa_api import export_data
     #从label-studio下载文
+    if usecache:
+        json_files = [os.path.join(dirpath,j) for j in jsonfile]
+    else:
+        json_files = []
+        for hname, jfile in zip(hostname,jsonfile):
+            json_file = export_data(hostname=hname, dirpath=dirpath, jsonfile=jfile, proxy=False)
+            json_files.append(json_file)
     original_data = []
-    for hname, jfile in zip(hostname,jsonfile):
-        json_file = export_data(hostname=hname, dirpath=dirpath, jsonfile=jfile, proxy=False)
+    for json_file in json_files:
         #加载从label-studio获取的到json文件
         with open(json_file, 'r') as f:
             data = json.load(f)
-            print(f"共收集主机{hname}的数据{len(data)} 条")
+            print(f"共收集主机{json_file}的数据{len(data)} 条")
             original_data.extend(data)
     data = predict_comare_excel(original_data, isabsa=isabsa)
     return data
 
 
-def download_data_and_compare_same(hostname=["http://192.168.50.139:8081/api/","http://192.168.50.139:8080/api/"], dirpath="/opt/lavector/absa/", jsonfile=["192.168.50.139_500_8081_0129.json","192.168.50.139_500_8080_0129.json"], isabsa=True):
+def download_data_and_compare_same(hostname=["http://192.168.50.139:8081/api/","http://192.168.50.139:8085/api/"], dirpath="/opt/lavector/absa/", jsonfile=["192.168.50.139_500_8081_0129.json","192.168.50.139_500_8085_0129.json"], isabsa=True):
     """
     对比相同的hostname的数据
     从label_studio的某个hostname下载数据，然后预测，最后给出结果
