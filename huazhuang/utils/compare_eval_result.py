@@ -261,7 +261,19 @@ def get_json_data_compare(jsonfile="/opt/lavector/192.168.50.119_8086.json"):
     data = predict_comare_excel(jsonfile, result_excel="result.xlsx", export_wrong_examples_excel="wrong.xlsx",correct_examples_excel= "correct.xlsx")
     return data
 
-
+def all_bad_case():
+    """
+    测试所有的badcase
+    总样本数是13688,预测错误的样本总数是1049
+    总样本数是13688,预测正确的样本总数是12639
+    保存全部为错误的样本到excel: wrong.xlsx完成
+    保存全部为正确的样本到excel: correct.xlsx完成
+    准确率为0.9233635300993571
+    :return:
+    """
+    from convert_label_studio_data import collect_json
+    data = collect_json(dirpath="/opt/lavector/absa")
+    predict_comare_excel(got_data=data)
 
 if __name__ == '__main__':
     # collect_data()
@@ -272,3 +284,4 @@ if __name__ == '__main__':
     download_data_and_compare(hostname=["http://192.168.50.139:8081/api/","http://192.168.50.139:8085/api/"], dirpath="/opt/lavector/absa/", jsonfile= ["192.168.50.139_500_8081_0226.json","192.168.50.139_500_8085_0226.json"],isabsa=True)
     # get_json_data_compare()
     # download_data_and_compare_same()
+    # all_bad_case()
