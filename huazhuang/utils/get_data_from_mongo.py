@@ -166,7 +166,7 @@ def do_truncate_special(content, keyword, start_idx, end_idx, add_special=True, 
     # 开始检查长度, 如果长度大于最大序列长度，我们要截取关键字上下的句子，直到满足最大长度以内,截取时用句子分隔的方式截取
     if len(texta_special) > max_texta_length:
         # 需要对texta进行阶段,采取怎样的截断方式更合适,按逗号和句号和冒号分隔
-        texta_split = re.split('([：。；，])', texta_special)
+        texta_split = re.split('([：。；，!])', texta_special)
         # 确定keyword在列表中的第几个元素中
         special_keyword_idx_list = []
         for t_idx, t in enumerate(texta_split):
