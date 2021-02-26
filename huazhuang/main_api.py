@@ -193,7 +193,7 @@ class TorchAsBertModel(object):
         # student config:  config/chinese_bert_config_L4t.json
         # distil student model:  distil_model/gs8316.pkl
         self.bert_config_file_S = "mac_bert_model/config.json"
-        self.tuned_checkpoint_S = "trained_teacher_model/macbert_2290_cosmetics_weibo.pkl"
+        self.tuned_checkpoint_S = "trained_teacher_model/macbert_894_cosmetics.pkl"
         # self.tuned_checkpoint_S = "trained_teacher_model/macbert_894_cosmetics.pkl"
         # self.tuned_checkpoint_S = "trained_teacher_model/macbert_teacher_max75len_5000.pkl"
         # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
