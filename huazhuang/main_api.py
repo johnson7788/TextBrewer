@@ -280,7 +280,7 @@ class TorchAsBertModel(object):
                 raise Exception(f"这条数据异常: {one_data},数据长度或者为2, 4，或者为5")
         return contents, locations
 
-    def truncate_sepcial(self, content, keyword, start_idx, end_idx, add_special=True, max_seq_length=70, verbose=True,
+    def truncate_sepcial(self, content, keyword, start_idx, end_idx, add_special=True, max_seq_length=70, verbose=False,
                             special='_'):
         """
         截断函数, 按句子截断，保留完整句子，同时满足最大的序列长度
@@ -411,6 +411,8 @@ class TorchAsBertModel(object):
                 for m in iter:
                     aspect_start, aspect_end = m.span()
                     new_content, newkeyword, left_text, right_text = self.truncate_sepcial(content, aspect, aspect_start, aspect_end, max_seq_length=self.max_seq_length)
+                    if new_content is None:
+                        new_content = content
                     contents.append((new_content, aspect))
                     locations.append((aspect_start,aspect_end))
             elif len(one_data) == 4:
@@ -419,6 +421,8 @@ class TorchAsBertModel(object):
                 new_content, newkeyword, left_text, right_text = self.truncate_sepcial(content, aspect, aspect_start,
                                                                                        aspect_end,
                                                                                        max_seq_length=self.max_seq_length)
+                if new_content is None:
+                    new_content = content
                 contents.append((new_content, aspect))
                 locations.append((aspect_start, aspect_end))
             elif len(one_data) == 5:
@@ -426,6 +430,8 @@ class TorchAsBertModel(object):
                 new_content, newkeyword, left_text, right_text = self.truncate_sepcial(content, aspect, aspect_start,
                                                                                        aspect_end,
                                                                                        max_seq_length=self.max_seq_length)
+                if new_content is None:
+                    new_content = content
                 contents.append((new_content, aspect))
                 locations.append((aspect_start, aspect_end))
             elif len(one_data) == 7:
@@ -433,6 +439,8 @@ class TorchAsBertModel(object):
                 new_content, newkeyword, left_text, right_text = self.truncate_sepcial(content, aspect, aspect_start,
                                                                                        aspect_end,
                                                                                        max_seq_length=self.max_seq_length)
+                if new_content is None:
+                    new_content = content
                 contents.append((new_content, aspect))
                 locations.append((aspect_start, aspect_end))
             else:

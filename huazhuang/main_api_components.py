@@ -26,9 +26,9 @@ import re
 import glob
 import numpy as np
 import torch
-from transformers import AlbertConfig
+from transformers import AlbertConfig, ElectraConfig
 from pytorch_pretrained_bert import BertTokenizer
-from modeling import AlbertSPC, BertForGLUESimpleAdaptorTraining
+from modeling import AlbertSPC, BertForGLUESimpleAdaptorTraining, ElectraSPC
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler, DistributedSampler
 from utils import divide_parameters
 from textbrewer import DistillationConfig, TrainingConfig, BasicTrainer
@@ -100,7 +100,8 @@ class TorchComBertModel(object):
         self.right_max_seq_len = 25
         self.aspect_max_seq_len = 30
         self.max_seq_length = 70
-        self.load_predict_model()
+        # self.load_predict_model()
+        self.load_electra_model()
         # self.load_macbert_model()
         # self.load_train_model()
 
@@ -177,6 +178,37 @@ class TorchComBertModel(object):
 
         # 加载模型
         model_S = AlbertSPC(bert_config_S)
+        state_dict_S = torch.load(self.tuned_checkpoint_S, map_location=self.device)
+        model_S.load_state_dict(state_dict_S)
+        if self.verbose:
+            print("模型已加载")
+        self.predict_tokenizer = tokenizer
+        self.predict_model =  model_S
+        logger.info(f"预测模型{model_file}加载完成")
+    def load_electra_model(self, model_file="trained_teacher_model/electra_310_components.pkl"):
+        parser = argparse.ArgumentParser()
+        args = parser.parse_args()
+        args.output_encoded_layers = True
+        args.output_attention_layers = True
+        args.output_att_score = True
+        args.output_att_sum = True
+        self.args = args
+        # 解析配置文件, 教师模型和student模型的vocab是不变的
+        self.vocab_file = "electra_model/vocab.txt"
+        # 这里是使用的teacher的config和微调后的teacher模型, 也可以换成student的config和蒸馏后的student模型
+        # student config:  config/chinese_bert_config_L4t.json
+        # distil student model:  distil_model/gs8316.pkl
+        self.bert_config_file_S = "electra_model/config.json"
+        self.tuned_checkpoint_S = model_file
+        # 加载student的配置文件, 校验最大序列长度小于我们的配置中的序列长度
+        bert_config_S = ElectraConfig.from_json_file(self.bert_config_file_S)
+        bert_config_S.num_labels = self.num_labels
+
+        # 加载tokenizer
+        tokenizer = BertTokenizer(vocab_file=self.vocab_file)
+
+        # 加载模型
+        model_S = ElectraSPC(bert_config_S)
         state_dict_S = torch.load(self.tuned_checkpoint_S, map_location=self.device)
         model_S.load_state_dict(state_dict_S)
         if self.verbose:
@@ -284,7 +316,7 @@ class TorchComBertModel(object):
                 raise Exception(f"这条数据异常: {one_data},数据长度或者为2, 4，或者为5")
         return contents, locations
 
-    def truncate_sepcial(self, content, keyword, start_idx, end_idx, add_special=True, max_seq_length=70, verbose=True,
+    def truncate_sepcial(self, content, keyword, start_idx, end_idx, add_special=True, max_seq_length=70, verbose=False,
                             special='_'):
         """
         截断函数, 按句子截断，保留完整句子，同时满足最大的序列长度
@@ -415,6 +447,8 @@ class TorchComBertModel(object):
                 for m in iter:
                     aspect_start, aspect_end = m.span()
                     new_content, newkeyword, left_text, right_text = self.truncate_sepcial(content, aspect, aspect_start, aspect_end, max_seq_length=self.max_seq_length)
+                    if new_content is None:
+                        new_content = content
                     contents.append((new_content, aspect))
                     locations.append((aspect_start,aspect_end))
             elif len(one_data) == 4:
@@ -423,6 +457,8 @@ class TorchComBertModel(object):
                 new_content, newkeyword, left_text, right_text = self.truncate_sepcial(content, aspect, aspect_start,
                                                                                        aspect_end,
                                                                                        max_seq_length=self.max_seq_length)
+                if new_content is None:
+                    new_content = content
                 contents.append((new_content, aspect))
                 locations.append((aspect_start, aspect_end))
             elif len(one_data) == 5:
@@ -430,6 +466,8 @@ class TorchComBertModel(object):
                 new_content, newkeyword, left_text, right_text = self.truncate_sepcial(content, aspect, aspect_start,
                                                                                        aspect_end,
                                                                                        max_seq_length=self.max_seq_length)
+                if new_content is None:
+                    new_content = content
                 contents.append((new_content, aspect))
                 locations.append((aspect_start, aspect_end))
             elif len(one_data) == 7:
@@ -437,6 +475,8 @@ class TorchComBertModel(object):
                 new_content, newkeyword, left_text, right_text = self.truncate_sepcial(content, aspect, aspect_start,
                                                                                        aspect_end,
                                                                                        max_seq_length=self.max_seq_length)
+                if new_content is None:
+                    new_content = content
                 contents.append((new_content, aspect))
                 locations.append((aspect_start, aspect_end))
             else:

@@ -225,6 +225,20 @@ Evaluating: 100%|█████████████████████
 ## electra
 ```
 python main.trainer.py --model_architecture electra --vocab_file electra_model/vocab.txt --data_dir data_root_dir/components --bert_config_file_T none --bert_config_file_S electra_model/config.json --init_checkpoint_S electra_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/components_electra --gradient_accumulation_steps 1 --task_name components --output_att_sum false --output_encoded_layers false --output_attention_layers false --num_train_epochs 5
+step: 155 ****
+ acc = 0.8994652406417112
+step: 310 ****
+ acc = 0.9197860962566845
+step: 465 ****
+ acc = 0.9133689839572192
+step: 620 ****
+ acc = 0.9133689839572192
+step: 775 ****
+ acc = 0.9165775401069519
+2021/02/26 16:16:52 - INFO - Main -  result: {'acc': 0.9165775401069519}
+2021/02/26 16:16:52 - INFO - Main -  ***** Eval results 775 task components *****
+2021/02/26 16:16:52 - INFO - Main -  acc = 0.9165775401069519
+
 ```
 ## albert
 ```

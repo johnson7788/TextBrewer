@@ -195,7 +195,7 @@ class CosmeticsProcessor(MnliProcessor):
     def get_labels(self):
         """cosmetics的labels"""
         return ["消极","中性","积极"]
-    def truncate_sepcial(self, content, keyword, start_idx, end_idx, add_special=True, max_seq_length=70, verbose=True,
+    def truncate_sepcial(self, content, keyword, start_idx, end_idx, add_special=True, max_seq_length=70, verbose=False,
                             special='_'):
         """
         截断函数, 按句子截断，保留完整句子，同时满足最大的序列长度
@@ -377,7 +377,7 @@ class NewComponentsProcessor(MnliProcessor):
     def get_labels(self):
         """cosmetics的labels"""
         return ["是","否"]
-    def truncate_sepcial(self, content, keyword, start_idx, end_idx, add_special=True, max_seq_length=70, verbose=True,
+    def truncate_sepcial(self, content, keyword, start_idx, end_idx, add_special=True, max_seq_length=70, verbose=False,
                             special='_'):
         """
         截断函数, 按句子截断，保留完整句子，同时满足最大的序列长度

@@ -269,10 +269,11 @@ def check_train_data(result_excel="result.xlsx", export_wrong_examples_excel="wr
     from convert_label_studio_data import get_all
     # [(text, keyword, start_idx, end_idx, label)]
     original_data = get_all(absa=False, keep_cancel=False, split=False)
-    predict_result = dopredict(test_data=original_data, url="http://192.168.50.139:5010/api/predict_albert")
+    # predict_result = dopredict(test_data=original_data, url="http://127.0.0.1:5010/api/predict_truncate")
+    predict_result = dopredict(test_data=original_data, url="http://192.168.50.139:5010/api/predict_truncate")
     excel_data = []
     for ori, d in zip(original_data, predict_result):
-        one_data = {"text": ori[0], "keyword": d[2][1], "label": d[2][2], "predict": d[0], "location": d[3],
+        one_data = {"text": ori[0], "keyword": ori[1], "label": ori[4], "predict": d[0], "location": d[3],
                     "probability": format(d[1], "0.3f"), "channel": ori[-2], "wordtype": ori[-1]}
         excel_data.append(one_data)
     df = pd.DataFrame(excel_data)
@@ -286,7 +287,7 @@ def check_train_data(result_excel="result.xlsx", export_wrong_examples_excel="wr
     # 保存预测错误的样本到excel中
     correct_examples = []
     for ori, d in zip(original_data, predict_result):
-        one_data = {"text": ori[0], "keyword": d[2][1], "label": d[2][2], "predict": d[0], "location": d[3],
+        one_data = {"text": ori[0], "keyword": ori[1], "label": ori[4], "predict": d[0], "location": d[3],
                     "probability": format(d[1], "0.3f"), "channel": ori[-2], "wordtype": ori[-1]}
         if one_data["label"] != one_data["predict"]:
             print(f"{one_data['text']}: 模型预测的结果与ground truth不一致")
