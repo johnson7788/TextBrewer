@@ -229,4 +229,14 @@ python main.trainer.py --model_architecture electra --vocab_file electra_model/v
 ## albert
 ```
 python main.trainer.py --model_architecture albert --vocab_file albert_model/vocab.txt --data_dir data_root_dir/components --bert_config_file_T none --bert_config_file_S albert_model/config.json --init_checkpoint_S albert_model/pytorch_model.bin --do_lower_case --do_train --do_predict --max_seq_length 70 --train_batch_size 24 --random_seed 9580 --num_train_epochs 6 --learning_rate 2e-5 --ckpt_frequency 1 --schedule slanted_triangular --s_opt1 30 --output_dir output_root_dir/components_albert --gradient_accumulation_steps 1 --task_name components --output_att_sum false --output_encoded_layers false --output_attention_layers false --num_train_epochs 5
+step: 155 ****
+ acc = 0.853475935828877
+step: 310 ****
+ acc = 0.8823529411764706
+step: 465 ****
+ acc = 0.8941176470588236
+step: 620 ****
+ acc = 0.8973262032085562
+step: 775 ****
+ acc = 0.9026737967914439
 ```
